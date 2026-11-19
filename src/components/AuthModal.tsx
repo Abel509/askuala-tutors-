@@ -117,7 +117,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           : await loginAccount({ phone: normalized, password });
       onSuccess(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      if (isAmharicUI && /already exists|registered once/i.test(msg)) {
+        setError(
+          'ይህ የኢትዮጵያ ስልክ ቁጥር አስቀድሞ ተመዝግቧል። በአንድ ስልክ ቁጥር አንድ ጊዜ ብቻ መመዝገብ ይቻላል፤ እባክዎ በዚሁ ቁጥር ይግቡ።'
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -157,10 +164,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {isAmharicUI
               ? mode === 'login'
                 ? 'በተመዘገቡበት የኢትዮጵያ ስልክ ቁጥር እና የይለፍ ቃል ይግቡ፤ ወዲያውኑ ወደ ወላጅ ፖርታልዎ ይወስድዎታል።'
-                : 'በኢትዮጵያ ስልክ ቁጥር እና 8 ባለ ጠንካራ የይለፍ ቃል የወላጅ አካውንት ይፍጠሩ።'
+                : 'በኢትዮጵያ ስልክ ቁጥር እና 8 ባለ ጠንካራ የይለፍ ቃል የወላጅ አካውንት ይፍጠሩ (አንድ ስልክ ቁጥር አንድ ጊዜ ብቻ ይመዘገባል)።'
               : mode === 'login'
               ? 'Sign in with your Ethiopian phone number (+251 / 09 / 07) and password to open your portal.'
-              : 'Register with your Ethiopian phone number and an 8-character strong password.'}
+              : 'Register with your Ethiopian phone number and an 8-character strong password (each phone number can only be registered once).'}
           </span>
         </div>
 
@@ -262,6 +269,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               placeholder="0911223344 or +251911223344"
               className="w-full min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] border-[#cbd5e1] bg-white tabular-nums"
             />
+            {mode === 'register' && (
+              <p className="text-xs mt-1 text-[#475569]">
+                {isAmharicUI
+                  ? 'ማሳሰቢያ፡ አንድ የስልክ ቁጥር አንድ ጊዜ ብቻ ለምዝገባ ያገለግላል።'
+                  : 'Note: One phone number can only be registered once.'}
+              </p>
+            )}
             {phone.trim().length > 0 && (
               <p className="text-xs mt-1 text-[#15803d] font-bold tabular-nums">
                 {normalizedPreview

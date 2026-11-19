@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   FileUp,
+  Lock,
   Maximize2,
   Printer,
   Search,
@@ -20,6 +21,7 @@ import {
   getRequiredAcademicDocuments,
   normalizeEthiopianPhone,
   SUBJECTS,
+  TUTOR_FEE_OPTIONS,
   WEEKDAY_SLOTS,
   WEEKEND_SLOTS,
 } from '../data/catalog';
@@ -35,8 +37,8 @@ import type {
   UploadedPdfDoc,
   UserAccount,
 } from '../types/app';
-import { saveTutorApplication, uploadPdfFile } from '../utils/api';
-import { buildTutorUnifiedPdf } from '../utils/pdfComposer';
+import { resolvePdfViewUrl, saveTutorApplication, uploadPdfFile } from '../utils/api';
+import { buildTutorUnifiedPdf, type PreviewPageItem } from '../utils/pdfComposer';
 
 interface TutorPortalProps {
   user: UserAccount;
@@ -55,6 +57,13 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [locationSearch, setLocationSearch] = useState('');
 
+  const mapLegacyFee = (raw?: FeeTier | ''): FeeTier | '' => {
+    if (!raw) return '';
+    if (raw === '400' || raw === '500' || raw === '600') return '400_600';
+    if (raw === '700_plus') return '600_plus';
+    return raw;
+  };
+
   const [profile, setProfile] = useState<TutorProfileData>(() => ({
     fullName: existingApplication?.profile.fullName || user.fullName || '',
     phone: existingApplication?.profile.phone || user.phone || '',
@@ -67,7 +76,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     preferredDays: existingApplication?.profile.preferredDays || [],
     weekdaySlots: existingApplication?.profile.weekdaySlots || [],
     weekendSlots: existingApplication?.profile.weekendSlots || [],
-    expectedFeePerHour: existingApplication?.profile.expectedFeePerHour || '',
+    expectedFeePerHour: mapLegacyFee(existingApplication?.profile.expectedFeePerHour),
   }));
 
   const [academicRecords, setAcademicRecords] = useState<TutorAcademicRecords>(
@@ -86,11 +95,32 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
 
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
-  const [previewPageUrls, setPreviewPageUrls] = useState<string[]>([]);
+  const [previewPages, setPreviewPages] = useState<PreviewPageItem[]>([]);
   const [previewPagesCount, setPreviewPagesCount] = useState<number>(0);
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [fullScreenPdf, setFullScreenPdf] = useState(false);
-  const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [agreements, setAgreements] = useState({
+    accurate: false,
+    phoneContact: false,
+    commission: false,
+    cannotEdit: false,
+  });
+  const isLockedSubmitted = Boolean(
+    existingApplication &&
+      (existingApplication.status === 'submitted' || existingApplication.status === 'verified')
+  );
+  const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(isLockedSubmitted);
+
+  useEffect(() => {
+    if (isLockedSubmitted) {
+      setSubmittedSuccess(true);
+      if (!previewPdfUrl && existingApplication?.mergedPdfFileId) {
+        resolvePdfViewUrl(existingApplication.mergedPdfFileId).then((url) => {
+          if (url) setPreviewPdfUrl(url);
+        });
+      }
+    }
+  }, [isLockedSubmitted, existingApplication?.mergedPdfFileId, previewPdfUrl]);
 
   const isBlockedBelowGrade11 = profile.educationLevel === 'below_11';
 
@@ -418,7 +448,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     setBuildingPdf(true);
     setStepError(null);
     try {
-      const { pdfBytes, totalPages, previewPageUrls: pages } = await buildTutorUnifiedPdf(
+      const { pdfBytes, totalPages, previewPages: pages } = await buildTutorUnifiedPdf(
         profile,
         academicRecords,
         uploadedDocuments
@@ -428,7 +458,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       const url = URL.createObjectURL(blob);
       setPreviewPdfBytes(pdfBytes);
       setPreviewPdfUrl(url);
-      setPreviewPageUrls(pages);
+      setPreviewPages(pages);
       setPreviewPagesCount(totalPages);
     } catch (e) {
       setStepError(e instanceof Error ? e.message : 'Unable to build unified application PDF.');
@@ -438,6 +468,32 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
   };
 
   const handleFinalSubmit = async () => {
+    resetValidation();
+    const fields = new Set<string>();
+    const messages: string[] = [];
+    if (!agreements.accurate) {
+      fields.add('agree_accurate');
+      messages.push('Please confirm that all information you entered is accurate.');
+    }
+    if (!agreements.phoneContact) {
+      fields.add('agree_phoneContact');
+      messages.push('Please confirm you will be contacted by phone if matched.');
+    }
+    if (!agreements.commission) {
+      fields.add('agree_commission');
+      messages.push('Please confirm your agreement to pay the commission if a match is found.');
+    }
+    if (!agreements.cannotEdit) {
+      fields.add('agree_cannotEdit');
+      messages.push('Please confirm that once you submit, you cannot edit your application.');
+    }
+    if (messages.length > 0) {
+      setMissingFields(fields);
+      setMissingMessages(messages);
+      scrollToTopOrFirstError(true);
+      return;
+    }
+
     setSaving(true);
     setStepError(null);
     try {
@@ -456,6 +512,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
         uploadedDocuments,
         mergedPdfFileId: mergedFileId,
         mergedPdfFilename: mergedFilename,
+        agreedToTerms: true,
         submit: true,
       });
       onApplicationUpdated(res.application);
@@ -571,19 +628,36 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
           )}
 
           {submittedSuccess ? (
-            <div className="py-8 text-center space-y-4">
-              <CheckCircle2 className="w-14 h-14 text-[#16a34a] mx-auto" aria-hidden="true" />
-              <h2 className="text-2xl font-bold text-[#14532d]">
-                Application Submitted Successfully!
-              </h2>
-              <p className="text-[#475569] max-w-xl mx-auto">
-                Your complete tutor dossier and unified PDF ({previewPagesCount} pages including all
-                uploaded academic documents) have been received. Our Coordinator will verify your
-                documents and contact you directly on{' '}
-                <strong className="text-[#14532d] tabular-nums">{profile.phone}</strong> when
-                matched with a family.
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-3 no-print">
+            <div className="py-8 text-center space-y-5">
+              <CheckCircle2 className="w-16 h-16 text-[#16a34a] mx-auto" aria-hidden="true" />
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#14532d]">
+                  Congratulations on completing! We will get back to you.
+                </h2>
+                <p className="text-[#475569] max-w-xl mx-auto">
+                  Your complete tutor application dossier (including your entered academic details
+                  and all uploaded PDF documents) has been submitted. Our Coordinator will review your
+                  records and contact you directly on{' '}
+                  <strong className="text-[#14532d] tabular-nums">{profile.phone}</strong> when a
+                  match is found.
+                </p>
+              </div>
+
+              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-1.5">
+                {existingApplication?.id && (
+                  <p className="font-bold tabular-nums">
+                    Application Reference ID: <span className="underline">{existingApplication.id}</span>
+                  </p>
+                )}
+                <p className="font-semibold flex items-center justify-center gap-1.5 text-[#15803d]">
+                  <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Application Locked &mdash; Submitted applications cannot be edited or modified.
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2 no-print">
                 {previewPdfUrl && (
                   <a
                     href={previewPdfUrl}
@@ -828,10 +902,11 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                         }`}
                       >
                         <option value="">-- Select Hourly Fee --</option>
-                        <option value="400">400 ETB</option>
-                        <option value="500">500 ETB</option>
-                        <option value="600">600 ETB</option>
-                        <option value="700_plus">700 ETB and over</option>
+                        {TUTOR_FEE_OPTIONS.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.en}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1326,25 +1401,32 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                   {buildingPdf ? (
                     <div className="p-12 text-center bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
                       <p className="font-bold text-[#14532d]">
-                        Building unified PDF with visible uploaded documents...
+                        Building unified PDF with all visible uploaded documents...
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {previewPageUrls.length > 0 && (
+                      {previewPages.length > 0 && (
                         <div className="space-y-4">
                           <h3 className="text-sm font-bold uppercase tracking-wider text-[#15803d]">
-                            Application Summary Pages ({previewPageUrls.length})
+                            Unified Application Pages &mdash; Summary &amp; Embedded Uploaded PDFs (
+                            {previewPages.length} visible pages)
                           </h3>
                           <div className="space-y-4">
-                            {previewPageUrls.map((src, idx) => (
+                            {previewPages.map((pg, idx) => (
                               <div
                                 key={idx}
                                 className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
                               >
+                                <div className="px-4 py-2 bg-[#f0fdf4] border-b border-[#bbf7d0] flex items-center justify-between text-xs font-bold text-[#14532d]">
+                                  <span>{pg.caption}</span>
+                                  <span>
+                                    Page {idx + 1} of {previewPages.length}
+                                  </span>
+                                </div>
                                 <img
-                                  src={src}
-                                  alt={`Tutor Application Page ${idx + 1}`}
+                                  src={pg.url}
+                                  alt={pg.caption}
                                   className="w-full h-auto block"
                                 />
                               </div>
@@ -1353,28 +1435,11 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                         </div>
                       )}
 
-                      {uploadedDocuments.length > 0 && (
-                        <div className="p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] space-y-2">
-                          <h3 className="text-sm font-bold text-[#14532d]">
-                            Embedded Uploaded Academic PDFs ({uploadedDocuments.length} file
-                            {uploadedDocuments.length > 1 ? 's' : ''}, included inside full PDF)
-                          </h3>
-                          <ul className="space-y-1 text-sm text-[#0f172a]">
-                            {uploadedDocuments.map((doc) => (
-                              <li key={doc.recordKey} className="font-semibold">
-                                &bull; {doc.label}: {doc.filename} ({doc.pageCount} page
-                                {doc.pageCount > 1 ? 's' : ''})
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
                       {previewPdfUrl && (
-                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc]">
+                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc] no-print">
                           <div className="px-4 py-2 bg-[#14532d] text-white text-xs font-bold flex items-center justify-between">
-                            <span>Unified PDF Preview ({previewPagesCount} total pages)</span>
-                            <span>Use Download Full PDF above if embedded viewer is restricted</span>
+                            <span>Unified PDF File Preview ({previewPagesCount} total pages)</span>
+                            <span>Download Full PDF above to save a permanent copy</span>
                           </div>
                           <iframe
                             src={previewPdfUrl}
@@ -1383,6 +1448,74 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                           />
                         </div>
                       )}
+
+                      {/* Mandatory Applicant Agreement Checkboxes */}
+                      <fieldset className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#14532d] space-y-3 no-print">
+                        <legend className="text-base font-bold text-[#14532d] px-1">
+                          Mandatory Applicant Declaration &amp; Agreement *
+                        </legend>
+                        <p className="text-xs text-[#475569]">
+                          Please read and check all 4 statements below before submitting your
+                          application:
+                        </p>
+
+                        {(
+                          [
+                            {
+                              key: 'accurate' as const,
+                              errKey: 'agree_accurate',
+                              text: 'I confirm that all information and academic records I entered are completely accurate and genuine.',
+                            },
+                            {
+                              key: 'phoneContact' as const,
+                              errKey: 'agree_phoneContact',
+                              text: 'I understand that if I am matched with a family, ኣስኳላ Tutors will contact me via the phone number I provided.',
+                            },
+                            {
+                              key: 'commission' as const,
+                              errKey: 'agree_commission',
+                              text: 'I agree to pay the required platform commission if a match is found.',
+                            },
+                            {
+                              key: 'cannotEdit' as const,
+                              errKey: 'agree_cannotEdit',
+                              text: 'I understand that once I submit this application, I cannot edit or modify my information.',
+                            },
+                          ] as const
+                        ).map((item) => {
+                          const checked = agreements[item.key];
+                          const flagged = isErr(item.errKey);
+                          return (
+                            <label
+                              key={item.key}
+                              data-field-error={flagged ? 'true' : undefined}
+                              className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${
+                                flagged
+                                  ? 'field-error bg-[#fef2f2]'
+                                  : checked
+                                  ? 'bg-white border-[#16a34a]'
+                                  : 'bg-white border-[#cbd5e1] hover:border-[#22c55e]'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  clearFieldError(item.errKey);
+                                  setAgreements((prev) => ({
+                                    ...prev,
+                                    [item.key]: e.target.checked,
+                                  }));
+                                }}
+                                className="mt-0.5 w-5 h-5 accent-[#14532d] shrink-0 cursor-pointer"
+                              />
+                              <span className="text-sm font-bold text-[#0f172a]">
+                                {item.text}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </fieldset>
                     </div>
                   )}
                 </div>
@@ -1476,11 +1609,26 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
-          <iframe
-            src={previewPdfUrl}
-            title="Full Screen Tutor Application PDF"
-            className="flex-1 w-full bg-white"
-          />
+          <div className="flex-1 overflow-y-auto bg-[#f0fdf4] p-4 sm:p-6 space-y-4">
+            {previewPages.length > 0 ? (
+              <div className="max-w-4xl mx-auto space-y-4">
+                {previewPages.map((pg, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
+                  >
+                    <img src={pg.url} alt={pg.caption} className="w-full h-auto block" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <iframe
+                src={previewPdfUrl}
+                title="Full Screen Tutor Application PDF"
+                className="w-full h-full min-h-[75vh] bg-white rounded-xl"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

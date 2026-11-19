@@ -35,7 +35,7 @@ export default function App() {
     role: 'tutor',
   });
 
-  // Hidden 4-click Owner Access in the lower-last-right corner of Home footer
+  // Hidden 7-click Owner Access in the lower-last-right corner of Home footer
   const [ownerClicks, setOwnerClicks] = useState(0);
   const [ownerRevealed, setOwnerRevealed] = useState(false);
   const clickResetRef = useRef<number | null>(null);
@@ -132,14 +132,14 @@ export default function App() {
       window.clearTimeout(clickResetRef.current);
     }
     const next = ownerClicks + 1;
-    if (next >= 4) {
+    if (next >= 7) {
       setOwnerRevealed(true);
       setOwnerClicks(0);
     } else {
       setOwnerClicks(next);
       clickResetRef.current = window.setTimeout(() => {
         setOwnerClicks(0);
-      }, 6000);
+      }, 8000);
     }
   };
 
@@ -269,7 +269,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Crisp White Accessible Footer + Hidden 4-Click Owner Access in Lower-Last-Right Corner of Home */}
+      {/* Crisp White Accessible Footer + Hidden 7-Click Owner Access in Lower-Last-Right Corner of Home */}
       <footer className="relative border-t-[3px] border-[#14532d] bg-white text-[#14532d] py-5 px-4 sm:px-6 lg:px-8 text-sm no-print">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-0.5">
@@ -282,12 +282,12 @@ export default function App() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 min-h-[36px]">
+          <div className="flex flex-wrap items-center justify-end gap-3 min-h-[36px] ml-auto">
             {view === 'home' && ownerRevealed && (
               <button
                 type="button"
                 onClick={() => setView('admin')}
-                className="relative z-10 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-xs font-bold hover:bg-[#dcfce7] transition-colors cursor-pointer"
+                className="relative z-20 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-xs font-bold hover:bg-[#dcfce7] transition-colors cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Owner Access</span>
@@ -296,13 +296,14 @@ export default function App() {
           </div>
         </div>
 
-        {/* Invisible 4-click spot covering the lower last right corner of Home */}
+        {/* Invisible 7-click spot strictly on the lower-last-right corner of Home */}
         {view === 'home' && !ownerRevealed && (
           <button
             type="button"
+            tabIndex={-1}
             onClick={handleSecretCornerTap}
-            aria-label="Footer corner"
-            className="absolute right-0 bottom-0 w-44 h-full bg-transparent border-0 opacity-0 cursor-default select-none focus:outline-none"
+            aria-hidden="true"
+            className="absolute right-0 bottom-0 w-24 h-12 bg-transparent border-0 opacity-0 cursor-default select-none focus:outline-none z-10"
           />
         )}
       </footer>

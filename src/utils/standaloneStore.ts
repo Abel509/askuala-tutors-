@@ -165,7 +165,7 @@ function seedStandaloneDb(): StandaloneDb {
           preferredDays: ['monday', 'wednesday', 'friday', 'saturday'],
           weekdaySlots: ['wd_10_11', 'wd_11_12', 'wd_12_1'],
           weekendSlots: ['we_3_4', 'we_4_5', 'we_9_10', 'we_10_11'],
-          expectedFeePerHour: '500',
+          expectedFeePerHour: '400_600',
         },
         academicRecords: {
           grade9Avg: '91.5',
@@ -213,7 +213,7 @@ function seedStandaloneDb(): StandaloneDb {
           preferredDays: ['tuesday', 'thursday', 'saturday', 'sunday'],
           weekdaySlots: ['wd_10_11', 'wd_11_12'],
           weekendSlots: ['we_3_4', 'we_4_5', 'we_8_9', 'we_9_10', 'we_10_11'],
-          expectedFeePerHour: '600',
+          expectedFeePerHour: '600_plus',
         },
         academicRecords: {
           graduationCgpa: '3.84',
@@ -294,6 +294,12 @@ function saveDb(db: StandaloneDb) {
 }
 
 function feeSatisfiesBudget(tutorFee: string, budget: string): boolean {
+  if (tutorFee === '400_600') {
+    return budget === '400_500' || budget === 'max_600' || budget === '600_700_efficiency';
+  }
+  if (tutorFee === '600_plus') {
+    return budget === '600_700_efficiency';
+  }
   const feeNum = tutorFee === '700_plus' ? 700 : Number(tutorFee || 500);
   if (budget === '400_500') return feeNum <= 500;
   if (budget === 'max_600') return feeNum <= 600;
@@ -405,7 +411,7 @@ export async function ensureSampleStandalonePdf(fileId: string): Promise<Uint8Ar
     const bytes = await createSamplePdfBytes('Verified Tutor Dossier (Dawit Tesfaye Bekele)', [
       'Full Name: Dawit Tesfaye Bekele | Phone: +251911223344',
       'Education Level: College Student (Grade 9-12 avgs: 91.5%, 93%, 90.4%, 92.2%)',
-      'ESSLCE Converted Score: 548 / 600 | Expected Fee: 500 ETB/hr',
+      'ESSLCE Converted Score: 548 / 600 | Expected Fee: 400–600 ETB/hr',
       'Locations: 4 Kilo, 5 Kilo, 6 Kilo, Piassa, Bole',
     ]);
     await saveStandalonePdfBytes(fileId, bytes);
@@ -415,7 +421,7 @@ export async function ensureSampleStandalonePdf(fileId: string): Promise<Uint8Ar
     const bytes = await createSamplePdfBytes('Verified Tutor Dossier (Mekdes Alemu Girma)', [
       'Full Name: Mekdes Alemu Girma | Phone: +251922334455',
       "Education Level: Bachelor's Graduate (CGPA: 3.84 / 4.00, ESSLCE: 532)",
-      'Expected Fee: 600 ETB/hr | Experience: 2+ Years',
+      'Expected Fee: 600+ ETB/hr | Experience: 2+ Years',
       'Locations: Bole, Megenagna, CMC, Ayat, Gerji, Kazanchis, 4 Kilo',
     ]);
     await saveStandalonePdfBytes(fileId, bytes);
@@ -433,8 +439,10 @@ export const standaloneApi = {
     const db = getDb();
     const normalized = normalizePhone(payload.phone);
     if (!normalized) throw new Error('Please enter a valid Ethiopian phone number.');
-    if (db.users.some((u) => u.phone === normalized)) {
-      throw new Error('An account with this Ethiopian phone number already exists.');
+    if (db.users.some((u) => normalizePhone(u.phone) === normalized || u.phone === normalized)) {
+      throw new Error(
+        'Each Ethiopian phone number can only be registered once. An account with this number already exists—please sign in.'
+      );
     }
     const newUser: StoredUser = {
       id: `user_${Math.random().toString(36).slice(2, 10)}`,
@@ -503,11 +511,30 @@ export const standaloneApi = {
     const db = getDb();
     const user = db.users.find((u) => u.id === db.currentUserId);
     if (!user) throw new Error('Please sign in first.');
-    const now = new Date().toISOString();
     let app = db.tutorApplications.find((a) => a.userId === user.id);
+    if (app && (app.status === 'submitted' || app.status === 'verified')) {
+      throw new Error('This application has already been submitted and cannot be edited.');
+    }
+    const normalizedPhone = normalizePhone(payload.profile?.phone || '');
+    if (!normalizedPhone) throw new Error('A valid Ethiopian phone number is required.');
+    const duplicatePhone =
+      db.users.some((u) => u.id !== user.id && normalizePhone(u.phone) === normalizedPhone) ||
+      db.tutorApplications.some((t) => t.userId !== user.id && normalizePhone(t.profile.phone) === normalizedPhone) ||
+      db.parentApplications.some((p) => p.userId !== user.id && normalizePhone(p.parentProfile.phone) === normalizedPhone);
+    if (duplicatePhone) {
+      throw new Error('Each Ethiopian phone number can only be registered once. This number belongs to another account.');
+    }
+    if (payload.submit && !payload.agreedToTerms) {
+      throw new Error('Please confirm all mandatory agreement statements before submitting.');
+    }
+    const cleanProfile = { ...payload.profile!, phone: normalizedPhone };
+    const now = new Date().toISOString();
     if (app) {
       Object.assign(app, payload, {
-        status: payload.submit ? (app.status === 'verified' ? 'verified' : 'submitted') : 'draft',
+        profile: cleanProfile,
+        status: payload.submit ? 'submitted' : 'draft',
+        agreedToTerms: payload.submit ? true : app.agreedToTerms,
+        agreedAt: payload.submit ? now : app.agreedAt,
         updatedAt: now,
         submittedAt: payload.submit ? now : app.submittedAt,
       });
@@ -516,11 +543,13 @@ export const standaloneApi = {
         id: `tapp_${Math.random().toString(36).slice(2, 8)}`,
         userId: user.id,
         status: payload.submit ? 'submitted' : 'draft',
-        profile: payload.profile!,
+        profile: cleanProfile,
         academicRecords: payload.academicRecords || {},
         uploadedDocuments: payload.uploadedDocuments || [],
         mergedPdfFileId: payload.mergedPdfFileId,
         mergedPdfFilename: payload.mergedPdfFilename,
+        agreedToTerms: payload.submit ? true : undefined,
+        agreedAt: payload.submit ? now : undefined,
         submittedAt: payload.submit ? now : undefined,
         updatedAt: now,
       };
@@ -535,11 +564,30 @@ export const standaloneApi = {
     const db = getDb();
     const user = db.users.find((u) => u.id === db.currentUserId);
     if (!user) throw new Error('Please sign in first.');
-    const now = new Date().toISOString();
     let app = db.parentApplications.find((a) => a.userId === user.id);
+    if (app && (app.status === 'submitted' || app.status === 'matched')) {
+      throw new Error('ማመልከቻው አንዴ ከተላከ በኋላ ማስተካከል አይቻልም።');
+    }
+    const normalizedPhone = normalizePhone(payload.parentProfile?.phone || '');
+    if (!normalizedPhone) throw new Error('ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ።');
+    const duplicatePhone =
+      db.users.some((u) => u.id !== user.id && normalizePhone(u.phone) === normalizedPhone) ||
+      db.tutorApplications.some((t) => t.userId !== user.id && normalizePhone(t.profile.phone) === normalizedPhone) ||
+      db.parentApplications.some((p) => p.userId !== user.id && normalizePhone(p.parentProfile.phone) === normalizedPhone);
+    if (duplicatePhone) {
+      throw new Error('ይህ የስልክ ቁጥር አስቀድሞ በሌላ አካውንት ተመዝግቧል። በአንድ ስልክ ቁጥር አንድ ጊዜ ብቻ መመዝገብ ይቻላል።');
+    }
+    if (payload.submit && !payload.agreedToTerms) {
+      throw new Error('ማመልከቻውን ከመላክዎ በፊት ሁሉንም የግዴታ ስምምነቶች ማረጋገጥ አለብዎት።');
+    }
+    const cleanProfile = { ...payload.parentProfile!, phone: normalizedPhone };
+    const now = new Date().toISOString();
     if (app) {
       Object.assign(app, payload, {
+        parentProfile: cleanProfile,
         status: payload.submit ? 'submitted' : app.status,
+        agreedToTerms: payload.submit ? true : app.agreedToTerms,
+        agreedAt: payload.submit ? now : app.agreedAt,
         updatedAt: now,
         submittedAt: payload.submit ? now : app.submittedAt,
       });
@@ -548,13 +596,15 @@ export const standaloneApi = {
         id: `papp_${Math.random().toString(36).slice(2, 8)}`,
         userId: user.id,
         status: payload.submit ? 'submitted' : 'draft',
-        parentProfile: payload.parentProfile!,
+        parentProfile: cleanProfile,
         kidsCountChoice: payload.kidsCountChoice || '1',
         kidsCountNumber: payload.kidsCountNumber || 1,
         kids: payload.kids || [],
         tutorPreference: payload.tutorPreference!,
         summaryPdfFileId: payload.summaryPdfFileId,
         summaryPdfFilename: payload.summaryPdfFilename,
+        agreedToTerms: payload.submit ? true : undefined,
+        agreedAt: payload.submit ? now : undefined,
         submittedAt: payload.submit ? now : undefined,
         updatedAt: now,
       };

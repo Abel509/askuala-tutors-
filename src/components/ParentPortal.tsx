@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Download,
+  Lock,
   Maximize2,
   Printer,
   Send,
@@ -30,7 +31,7 @@ import type {
   SchoolType,
   UserAccount,
 } from '../types/app';
-import { saveParentApplication, uploadPdfFile } from '../utils/api';
+import { resolvePdfViewUrl, saveParentApplication, uploadPdfFile } from '../utils/api';
 import { buildParentAmharicPdf } from '../utils/pdfComposer';
 
 interface ParentPortalProps {
@@ -97,7 +98,28 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
   const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
   const [previewPageUrls, setPreviewPageUrls] = useState<string[]>([]);
   const [fullScreenPdf, setFullScreenPdf] = useState(false);
-  const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [agreements, setAgreements] = useState({
+    accurate: false,
+    phoneContact: false,
+    commission: false,
+    cannotEdit: false,
+  });
+  const isLockedSubmitted = Boolean(
+    existingApplication &&
+      (existingApplication.status === 'submitted' || existingApplication.status === 'matched')
+  );
+  const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(isLockedSubmitted);
+
+  useEffect(() => {
+    if (isLockedSubmitted) {
+      setSubmittedSuccess(true);
+      if (!previewPdfUrl && existingApplication?.summaryPdfFileId) {
+        resolvePdfViewUrl(existingApplication.summaryPdfFileId).then((url) => {
+          if (url) setPreviewPdfUrl(url);
+        });
+      }
+    }
+  }, [isLockedSubmitted, existingApplication?.summaryPdfFileId, previewPdfUrl]);
 
   const clearFieldError = (key: string) => {
     setMissingFields((prev) => {
@@ -363,6 +385,34 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
   };
 
   const handleFinalSubmit = async () => {
+    resetValidation();
+    const fields = new Set<string>();
+    const messages: string[] = [];
+
+    if (!agreements.accurate) {
+      fields.add('agree_accurate');
+      messages.push('ያስገቡት መረጃ በሙሉ እውነተኛ እና ትክክለኛ መሆኑን ያረጋግጡ።');
+    }
+    if (!agreements.phoneContact) {
+      fields.add('agree_phoneContact');
+      messages.push('ተስማሚ መምህር ሲገኝ በስልክ ቁጥርዎ እንደሚገናኙ የሚገልጸውን ሳጥን ይምረጡ።');
+    }
+    if (!agreements.commission) {
+      fields.add('agree_commission');
+      messages.push('መምህር ሲገኝ ኮሚሽን ለመክፈል መስማማትዎን ያረጋግጡ።');
+    }
+    if (!agreements.cannotEdit) {
+      fields.add('agree_cannotEdit');
+      messages.push('ከተላከ በኋላ ማመልከቻውን ማስተካከል እንደማይቻል የሚገልጸውን ሳጥን ይምረጡ።');
+    }
+
+    if (messages.length > 0) {
+      setMissingFields(fields);
+      setMissingMessages(messages);
+      scrollToTopOrFirstError(true);
+      return;
+    }
+
     setSaving(true);
     setStepError(null);
     try {
@@ -383,6 +433,7 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
         tutorPreference,
         summaryPdfFileId,
         summaryPdfFilename,
+        agreedToTerms: true,
         submit: true,
       });
       onApplicationUpdated(res.application);
@@ -499,16 +550,34 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
           )}
 
           {submittedSuccess ? (
-            <div className="py-8 text-center space-y-4">
-              <CheckCircle2 className="w-14 h-14 text-[#16a34a] mx-auto" aria-hidden="true" />
-              <h2 className="text-2xl font-bold text-[#14532d]">ማመልከቻዎ በተሳካ ሁኔታ ተልኳል!</h2>
-              <p className="text-[#475569] max-w-xl mx-auto">
-                የቤተሰብዎ መረጃ እና የልጆችዎ የጥናት ፍላጎት ተመዝግቧል። አስተባባሪዎቻችን ከልጆችዎ ክፍል፣ አካባቢ እና ሰዓት ጋር
-                የሚመጣጠን የተረጋገጠ መምህር አገናኝተው በስልክ ቁጥርዎ{' '}
-                <strong className="text-[#14532d] tabular-nums">{parentProfile.phone}</strong>{' '}
-                ያገኙዎታል።
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-3 no-print">
+            <div className="py-8 text-center space-y-5">
+              <CheckCircle2 className="w-16 h-16 text-[#16a34a] mx-auto" aria-hidden="true" />
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#14532d]">
+                  ማመልከቻዎን ስላጠናቀቁ እንኳን ደስ አለዎት! በቅርቡ መልስ እንሰጥዎታለን።
+                </h2>
+                <p className="text-[#475569] max-w-xl mx-auto">
+                  የቤተሰብዎ መረጃ እና የልጆችዎ የጥናት ፍላጎት ተመዝግቧል። አስተባባሪዎቻችን ከልጆችዎ ክፍል፣
+                  አካባቢ እና ሰዓት ጋር የሚመጣጠን የተረጋገጠ መምህር አገናኝተው በስልክ ቁጥርዎ{' '}
+                  <strong className="text-[#14532d] tabular-nums">{parentProfile.phone}</strong>{' '}
+                  ያገኙዎታል።
+                </p>
+              </div>
+
+              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-1.5">
+                {existingApplication?.id && (
+                  <p className="font-bold tabular-nums">
+                    የማመልከቻ መለያ ቁጥር፡{' '}
+                    <span className="underline">{existingApplication.id}</span>
+                  </p>
+                )}
+                <p className="font-semibold flex items-center justify-center gap-1.5 text-[#15803d]">
+                  <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>ማመልከቻዎ ተቆልፏል — ከተላከ በኋላ መረጃ መቀየር ወይም ማስተካከል አይቻልም።</span>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2 no-print">
                 {previewPdfUrl && (
                   <a
                     href={previewPdfUrl}
@@ -1293,7 +1362,7 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                       )}
 
                       {previewPdfUrl && (
-                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc]">
+                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc] no-print">
                           <iframe
                             src={previewPdfUrl}
                             title="የወላጅ ማመልከቻ PDF ቅድመ እይታ"
@@ -1301,6 +1370,73 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                           />
                         </div>
                       )}
+
+                      {/* የግዴታ የወላጅ ስምምነት እና ማረጋገጫ */}
+                      <fieldset className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#14532d] space-y-3 no-print">
+                        <legend className="text-base font-bold text-[#14532d] px-1">
+                          የወላጅ የግዴታ ስምምነት እና ማረጋገጫ *
+                        </legend>
+                        <p className="text-xs text-[#475569]">
+                          እባክዎ ማመልከቻውን ከመላክዎ በፊት የሚከተሉትን 4 ነጥቦች በሙሉ ያንብቡና ምልክት ያድርጉ፡
+                        </p>
+
+                        {(
+                          [
+                            {
+                              key: 'accurate' as const,
+                              errKey: 'agree_accurate',
+                              text: 'ያስገባሁት መረጃ በሙሉ እውነተኛ እና ትክክለኛ መሆኑን አረጋግጣለሁ።',
+                            },
+                            {
+                              key: 'phoneContact' as const,
+                              errKey: 'agree_phoneContact',
+                              text: 'ተስማሚ መምህር ሲገኝ በገባሁት ስልክ ቁጥር እንደሚደወልልኝ እና እንደምገናኝ ተረድቻለሁ።',
+                            },
+                            {
+                              key: 'commission' as const,
+                              errKey: 'agree_commission',
+                              text: 'መምህር ሲገኝልኝ የሚጠበቀውን የአገልግሎት ኮሚሽን ለመክፈል እስማማለሁ።',
+                            },
+                            {
+                              key: 'cannotEdit' as const,
+                              errKey: 'agree_cannotEdit',
+                              text: 'ማመልከቻውን አንዴ ከላክሁ በኋላ መረጃውን ማስተካከል ወይም መቀየር እንደማልችል ተረድቻለሁ።',
+                            },
+                          ] as const
+                        ).map((item) => {
+                          const checked = agreements[item.key];
+                          const flagged = isErr(item.errKey);
+                          return (
+                            <label
+                              key={item.key}
+                              data-field-error={flagged ? 'true' : undefined}
+                              className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${
+                                flagged
+                                  ? 'field-error bg-[#fef2f2]'
+                                  : checked
+                                  ? 'bg-white border-[#16a34a]'
+                                  : 'bg-white border-[#cbd5e1] hover:border-[#22c55e]'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  clearFieldError(item.errKey);
+                                  setAgreements((prev) => ({
+                                    ...prev,
+                                    [item.key]: e.target.checked,
+                                  }));
+                                }}
+                                className="mt-0.5 w-5 h-5 accent-[#14532d] shrink-0 cursor-pointer"
+                              />
+                              <span className="text-sm font-bold text-[#0f172a]">
+                                {item.text}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </fieldset>
                     </div>
                   )}
                 </div>
@@ -1390,11 +1526,30 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
-          <iframe
-            src={previewPdfUrl}
-            title="የወላጅ ማመልከቻ PDF"
-            className="flex-1 w-full bg-white"
-          />
+          <div className="flex-1 overflow-y-auto bg-[#f0fdf4] p-4 sm:p-6 space-y-4">
+            {previewPageUrls.length > 0 ? (
+              <div className="max-w-4xl mx-auto space-y-4">
+                {previewPageUrls.map((src, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
+                  >
+                    <img
+                      src={src}
+                      alt={`የወላጅ ማመልከቻ ገጽ ${idx + 1}`}
+                      className="w-full h-auto block"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <iframe
+                src={previewPdfUrl}
+                title="የወላጅ ማመልከቻ PDF"
+                className="w-full h-full min-h-[75vh] bg-white rounded-xl"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -16,17 +16,24 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { ADDIS_LOCATIONS, EDUCATION_LEVEL_LABELS, SUBJECTS } from '../data/catalog';
+import {
+  ADDIS_LOCATIONS,
+  EDUCATION_LEVEL_LABELS,
+  formatFeeTierLabel,
+  SUBJECTS,
+} from '../data/catalog';
 import {
   changeOwnerPasscode,
   createAdminMatch,
   fetchAdminOverview,
+  getPdfBytes,
   isStandaloneFileMode,
   resolvePdfViewUrl,
   unlockOwnerWithPasscode,
   updateTutorAdminStatus,
   type AuthResponse,
 } from '../utils/api';
+import { renderPdfBytesToPngUrls, type PreviewPageItem } from '../utils/pdfComposer';
 import type { MatchRecord, ParentApplication, TutorApplication, UserAccount } from '../types/app';
 
 interface AdminConsoleProps {
@@ -80,8 +87,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   // Full-screen PDF modal
   const [inspectPdfUrl, setInspectPdfUrl] = useState<string | null>(null);
   const [inspectPdfTitle, setInspectPdfTitle] = useState<string>('');
+  const [inspectPdfPages, setInspectPdfPages] = useState<PreviewPageItem[]>([]);
+  const [loadingPdfPages, setLoadingPdfPages] = useState(false);
   const [selectedParentId, setSelectedParentId] = useState<string>('');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('');
+
+  const openPdfInspector = async (fileId: string, title: string) => {
+    const url = await resolvePdfViewUrl(fileId);
+    if (!url) return;
+    setInspectPdfTitle(title);
+    setInspectPdfUrl(url);
+    setInspectPdfPages([]);
+    setLoadingPdfPages(true);
+    try {
+      const bytes = await getPdfBytes(fileId);
+      if (bytes) {
+        const pages = await renderPdfBytesToPngUrls(bytes, title);
+        setInspectPdfPages(pages);
+      }
+    } finally {
+      setLoadingPdfPages(false);
+    }
+  };
 
   const isAuthorized = user?.role === 'admin' || unlockedLocally;
 
@@ -506,11 +533,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               </p>
                               <p className="text-xs text-[#475569]">
                                 Subjects: {t.profile.preferredSubjects.map(lookupSubj).join(', ')}{' '}
-                                &middot; Fee:{' '}
-                                {t.profile.expectedFeePerHour === '700_plus'
-                                  ? '700+'
-                                  : t.profile.expectedFeePerHour}{' '}
-                                ETB/hr
+                                &middot; Fee: {formatFeeTierLabel(t.profile.expectedFeePerHour)}
+                                {t.agreedToTerms ? ' · Agreed Terms ✓' : ''}
                               </p>
                             </div>
 
@@ -518,15 +542,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               {pdfId && (
                                 <button
                                   type="button"
-                                  onClick={async () => {
-                                    const url = await resolvePdfViewUrl(pdfId);
-                                    if (url) {
-                                      setInspectPdfUrl(url);
-                                      setInspectPdfTitle(
-                                        `${t.profile.fullName} — Application Dossier PDF`
-                                      );
-                                    }
-                                  }}
+                                  onClick={() =>
+                                    openPdfInspector(
+                                      pdfId,
+                                      `${t.profile.fullName} — Application Dossier PDF`
+                                    )
+                                  }
                                   className="min-h-[40px] px-3.5 py-2 rounded-xl border-2 border-[#14532d] bg-white text-[#14532d] text-sm font-bold inline-flex items-center gap-1.5 hover:bg-[#f0fdf4] cursor-pointer"
                                 >
                                   <FileText className="w-4 h-4" aria-hidden="true" />
@@ -596,15 +617,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                           {p.summaryPdfFileId && (
                             <button
                               type="button"
-                              onClick={async () => {
-                                const url = await resolvePdfViewUrl(p.summaryPdfFileId!);
-                                if (url) {
-                                  setInspectPdfUrl(url);
-                                  setInspectPdfTitle(
-                                    `${p.parentProfile.fullName} — Amharic Parent PDF`
-                                  );
-                                }
-                              }}
+                              onClick={() =>
+                                openPdfInspector(
+                                  p.summaryPdfFileId!,
+                                  `${p.parentProfile.fullName} — Amharic Parent PDF`
+                                )
+                              }
                               className="min-h-[40px] px-3.5 py-2 rounded-xl border-2 border-[#14532d] bg-white text-[#14532d] text-sm font-bold inline-flex items-center gap-1.5 hover:bg-[#f0fdf4] cursor-pointer"
                             >
                               <FileText className="w-4 h-4" aria-hidden="true" />
@@ -875,7 +893,26 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
               </button>
             </div>
           </div>
-          <iframe src={inspectPdfUrl} title={inspectPdfTitle} className="flex-1 w-full bg-white" />
+          <div className="flex-1 overflow-y-auto bg-[#f0fdf4] p-4 sm:p-6 space-y-5">
+            {loadingPdfPages ? (
+              <div className="max-w-3xl mx-auto p-10 rounded-xl bg-white border-2 border-[#22c55e] text-center font-bold text-[#14532d]">
+                Rendering all embedded PDF pages...
+              </div>
+            ) : inspectPdfPages.length > 0 ? (
+              <div className="max-w-4xl mx-auto space-y-4">
+                {inspectPdfPages.map((pg, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
+                  >
+                    <img src={pg.url} alt={pg.caption} className="w-full h-auto block" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <iframe src={inspectPdfUrl} title={inspectPdfTitle} className="w-full h-full min-h-[75vh] bg-white rounded-xl" />
+            )}
+          </div>
         </div>
       )}
     </div>

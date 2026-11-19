@@ -1,4 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   ADDIS_LOCATIONS,
   DAYS_OF_WEEK,
@@ -15,9 +17,80 @@ import type {
   UploadedPdfDoc,
 } from '../types/app';
 
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+}
+
 const PAGE_W = 1240;
 const PAGE_H = 1754;
 const MARGIN = 76;
+
+export interface PreviewPageItem {
+  url: string;
+  caption: string;
+  kind: 'summary' | 'document';
+}
+
+export async function renderPdfBytesToPngUrls(
+  pdfBytes: Uint8Array,
+  captionPrefix = 'PDF Document'
+): Promise<PreviewPageItem[]> {
+  try {
+    const dataCopy = new Uint8Array(pdfBytes);
+    const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
+    const pdf = await loadingTask.promise;
+    const total = pdf.numPages;
+    const items: PreviewPageItem[] = [];
+
+    for (let pageNum = 1; pageNum <= total; pageNum += 1) {
+      const page = await pdf.getPage(pageNum);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const targetScale = Math.min(2.2, Math.max(1.25, 1180 / Math.max(1, baseViewport.width)));
+      const viewport = page.getViewport({ scale: targetScale });
+
+      const headerH = 54;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height + headerH);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) continue;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Visible top identification strip for uploaded PDF page
+      ctx.fillStyle = '#14532d';
+      ctx.fillRect(0, 0, canvas.width, headerH);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, headerH - 4, canvas.width, 4);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px "Times New Roman", "Noto Sans Ethiopic", serif';
+      ctx.fillText(`${captionPrefix}  ·  Page ${pageNum} of ${total}`, 24, 34);
+
+      ctx.save();
+      ctx.translate(0, headerH);
+      await page.render({
+        canvasContext: ctx,
+        canvas,
+        viewport,
+      }).promise;
+      ctx.restore();
+
+      items.push({
+        url: canvas.toDataURL('image/png'),
+        caption: `${captionPrefix} (Page ${pageNum} of ${total})`,
+        kind: 'document',
+      });
+    }
+
+    await loadingTask.destroy();
+    return items;
+  } catch (err) {
+    console.warn('PDF.js page rendering fallback:', err);
+    return [];
+  }
+}
 
 interface SheetLine {
   type: 'section' | 'row' | 'note' | 'spacer';
@@ -189,7 +262,12 @@ export async function buildTutorUnifiedPdf(
   profile: TutorProfileData,
   academicRecords: TutorAcademicRecords,
   uploadedDocuments: UploadedPdfDoc[]
-): Promise<{ pdfBytes: Uint8Array; totalPages: number; previewPageUrls: string[] }> {
+): Promise<{
+  pdfBytes: Uint8Array;
+  totalPages: number;
+  previewPageUrls: string[];
+  previewPages: PreviewPageItem[];
+}> {
   const modeMap: Record<string, string> = {
     online: 'Online Only',
     in_person: 'In-Person Only',
@@ -201,6 +279,8 @@ export async function buildTutorUnifiedPdf(
     '2_plus_years': '2+ Years Experience',
   };
   const feeMap: Record<string, string> = {
+    '400_600': '400 – 600 ETB / hour',
+    '600_plus': '600+ ETB / hour',
     '400': '400 ETB / hour',
     '500': '500 ETB / hour',
     '600': '600 ETB / hour',
@@ -310,8 +390,9 @@ export async function buildTutorUnifiedPdf(
     page.drawImage(pngImage, { x: 0, y: 0, width: 595.28, height: 841.89 });
   }
 
-  // Append every visible page of every uploaded PDF
+  // Append every visible page of every uploaded PDF and render each uploaded PDF page to visible preview images
   const { getPdfBytes } = await import('./api');
+  const uploadedPreviewItems: PreviewPageItem[] = [];
   for (const doc of uploadedDocuments) {
     const rawBytes = await getPdfBytes(doc.fileId);
     if (!rawBytes) continue;
@@ -321,10 +402,27 @@ export async function buildTutorUnifiedPdf(
     for (const cp of copiedPages) {
       mergedPdf.addPage(cp);
     }
+    const renderedDocPages = await renderPdfBytesToPngUrls(
+      rawBytes,
+      `${doc.label} (${doc.filename})`
+    );
+    uploadedPreviewItems.push(...renderedDocPages);
   }
 
+  const summaryItems: PreviewPageItem[] = summaryImages.map((url, idx) => ({
+    url,
+    caption: `Application Summary (Page ${idx + 1} of ${summaryImages.length})`,
+    kind: 'summary',
+  }));
+  const previewPages = [...summaryItems, ...uploadedPreviewItems];
+
   const pdfBytes = await mergedPdf.save();
-  return { pdfBytes, totalPages: mergedPdf.getPageCount(), previewPageUrls: summaryImages };
+  return {
+    pdfBytes,
+    totalPages: mergedPdf.getPageCount(),
+    previewPageUrls: previewPages.map((p) => p.url),
+    previewPages,
+  };
 }
 
 export async function buildParentAmharicPdf(

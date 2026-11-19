@@ -18,7 +18,7 @@ export type EducationLevel =
 
 export type TutoringMode = 'online' | 'in_person' | 'both';
 export type PriorExperience = 'first_time' | '1_year' | '2_plus_years';
-export type FeeTier = '400' | '500' | '600' | '700_plus';
+export type FeeTier = '400_600' | '600_plus' | '400' | '500' | '600' | '700_plus';
 export type SexOption = 'male' | 'female';
 export type ParentSexPreference = 'male' | 'female' | 'any';
 
@@ -65,6 +65,8 @@ export interface TutorApplication {
   uploadedDocuments: UploadedPdfDoc[];
   mergedPdfFileId?: string;
   mergedPdfFilename?: string;
+  agreedToTerms?: boolean;
+  agreedAt?: string;
   submittedAt?: string;
   updatedAt: string;
 }
@@ -110,6 +112,8 @@ export interface ParentApplication {
   tutorPreference: ParentTutorPreference;
   summaryPdfFileId?: string;
   summaryPdfFilename?: string;
+  agreedToTerms?: boolean;
+  agreedAt?: string;
   submittedAt?: string;
   updatedAt: string;
 }

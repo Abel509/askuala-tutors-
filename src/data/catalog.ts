@@ -71,14 +71,34 @@ export const SUBJECTS: SubjectOption[] = [
   { id: 'economics', en: 'Economics', am: 'ኢኮኖሚክስ', category: 'social' },
   { id: 'civics', en: 'Civics & Ethical Education', am: 'ሥነ-ዜጋና ሥነ-ምግባር', category: 'social' },
   { id: 'social_studies', en: 'Social Studies', am: 'ማኅበራዊ ጥናት', category: 'social' },
-  { id: 'business', en: 'Business & Accounting', am: 'ቢዝነስ እና አካውንቲንግ', category: 'social' },
   // Languages & Exam Prep
   { id: 'english', en: 'English (Ethiopian Curriculum)', am: 'እንግሊዝኛ (መደበኛ)', category: 'language_exam' },
-  { id: 'amharic', en: 'Amharic', am: 'አማርኛ', category: 'language_exam' },
   { id: 'afan_oromo', en: 'Afan Oromo', am: 'አፋን ኦሮሞ', category: 'language_exam' },
   { id: 'spoken_english', en: 'Spoken English', am: 'የንግግር እንግሊዝኛ (Spoken English)', category: 'language_exam' },
   { id: 'entrance_exam', en: 'Entrance Exam Preparation (Grade 6, 8, 12)', am: 'የመግቢያ እና ብሔራዊ ፈተና ዝግጅት', category: 'language_exam' },
 ];
+
+export const TUTOR_FEE_OPTIONS: { id: '400_600' | '600_plus'; en: string }[] = [
+  { id: '400_600', en: '400 – 600 ETB' },
+  { id: '600_plus', en: '600+ ETB' },
+];
+
+export function formatFeeTierLabel(fee?: string): string {
+  switch (fee) {
+    case '400_600':
+      return '400–600 ETB/hr';
+    case '600_plus':
+      return '600+ ETB/hr';
+    case '700_plus':
+      return '700+ ETB/hr';
+    case '400':
+    case '500':
+    case '600':
+      return `${fee} ETB/hr`;
+    default:
+      return fee ? `${fee} ETB/hr` : '—';
+  }
+}
 
 export const DAYS_OF_WEEK: BilingualOption[] = [
   { id: 'monday', en: 'Monday', am: 'ሰኞ' },

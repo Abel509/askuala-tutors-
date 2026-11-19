@@ -227,7 +227,7 @@ async function initDatabase(): Promise<DatabaseSchema> {
     'Phone: +251911223344 | Sex: Male',
     'Locations: 4 Kilo, 5 Kilo, 6 Kilo, Piassa, Bole',
     'Subjects: Mathematics, Physics, Chemistry, ICT, Entrance Exam Preparation',
-    'Expected Fee: 500 ETB / hour',
+    'Expected Fee: 400–600 ETB / hour',
     'Status: Verified by Coordinator',
   ]);
 
@@ -236,7 +236,7 @@ async function initDatabase(): Promise<DatabaseSchema> {
     'Phone: +251922334455 | Sex: Female',
     'Locations: Bole, Megenagna, CMC, Ayat, Gerji, Kazanchis',
     'Subjects: Mathematics, Biology, Chemistry, English, Spoken English, Entrance Exam Preparation',
-    'Expected Fee: 600 ETB / hour',
+    'Expected Fee: 600+ ETB / hour',
     'Status: Verified by Coordinator',
   ]);
 
@@ -298,7 +298,7 @@ async function initDatabase(): Promise<DatabaseSchema> {
           preferredDays: ['monday', 'wednesday', 'friday', 'saturday'],
           weekdaySlots: ['wd_10_11', 'wd_11_12', 'wd_12_1'],
           weekendSlots: ['we_3_4', 'we_4_5', 'we_9_10', 'we_10_11'],
-          expectedFeePerHour: '500',
+          expectedFeePerHour: '400_600',
         },
         academicRecords: {
           grade9Avg: '91.5',
@@ -346,7 +346,7 @@ async function initDatabase(): Promise<DatabaseSchema> {
           preferredDays: ['tuesday', 'thursday', 'saturday', 'sunday'],
           weekdaySlots: ['wd_10_11', 'wd_11_12'],
           weekendSlots: ['we_3_4', 'we_4_5', 'we_8_9', 'we_9_10', 'we_10_11'],
-          expectedFeePerHour: '600',
+          expectedFeePerHour: '600_plus',
         },
         academicRecords: {
           graduationCgpa: '3.84',
@@ -430,6 +430,12 @@ function saveDatabase(db: DatabaseSchema) {
 }
 
 function feeSatisfiesBudget(tutorFee: string, budget: string): boolean {
+  if (tutorFee === '400_600') {
+    return budget === '400_500' || budget === 'max_600' || budget === '600_700_efficiency';
+  }
+  if (tutorFee === '600_plus') {
+    return budget === '600_700_efficiency';
+  }
   const feeNum = tutorFee === '700_plus' ? 700 : Number(tutorFee || 500);
   if (budget === '400_500') return feeNum <= 500;
   if (budget === 'max_600') return feeNum <= 600;
@@ -658,10 +664,11 @@ async function startServer() {
       return res.status(400).json({ error: 'Account role must be tutor or parent.' });
     }
 
-    const existing = db.users.find((u) => u.phone === normalized);
+    const existing = db.users.find((u) => normalizeEthiopianPhone(u.phone) === normalized || u.phone === normalized);
     if (existing) {
       return res.status(409).json({
-        error: 'An account with this Ethiopian phone number already exists. Please sign in.',
+        error:
+          'Each Ethiopian phone number can only be registered once. An account with this number already exists—please sign in.',
       });
     }
 
@@ -830,6 +837,7 @@ async function startServer() {
       uploadedDocuments,
       mergedPdfFileId,
       mergedPdfFilename,
+      agreedToTerms,
       submit,
     } = req.body as Partial<TutorApplication> & { submit?: boolean };
 
@@ -837,7 +845,42 @@ async function startServer() {
       return res.status(400).json({ error: 'Incomplete application payload.' });
     }
 
-    const eligibility = validateTutorEligibility(profile, academicRecords);
+    const existingLocked = db.tutorApplications.find((a) => a.userId === user.id);
+    if (
+      existingLocked &&
+      (existingLocked.status === 'submitted' || existingLocked.status === 'verified')
+    ) {
+      return res.status(403).json({
+        error: 'This application has already been submitted and cannot be edited.',
+      });
+    }
+
+    const normalizedPhone = normalizeEthiopianPhone(profile.phone || '');
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'A valid Ethiopian phone number is required.' });
+    }
+    const phoneUsedElsewhere =
+      db.users.some((u) => u.id !== user.id && normalizeEthiopianPhone(u.phone) === normalizedPhone) ||
+      db.tutorApplications.some(
+        (t) => t.userId !== user.id && normalizeEthiopianPhone(t.profile.phone) === normalizedPhone
+      ) ||
+      db.parentApplications.some(
+        (p) => p.userId !== user.id && normalizeEthiopianPhone(p.parentProfile.phone) === normalizedPhone
+      );
+    if (phoneUsedElsewhere) {
+      return res.status(409).json({
+        error: 'Each Ethiopian phone number can only be registered once. This phone number already belongs to another account.',
+      });
+    }
+    const cleanProfile = { ...profile, phone: normalizedPhone };
+
+    if (submit && !agreedToTerms) {
+      return res.status(400).json({
+        error: 'Please check all mandatory agreement statements before submitting your application.',
+      });
+    }
+
+    const eligibility = validateTutorEligibility(cleanProfile, academicRecords);
     const now = new Date().toISOString();
 
     let status: TutorApplication['status'] = submit ? 'submitted' : 'draft';
@@ -852,36 +895,42 @@ async function startServer() {
       });
     }
 
-    let existing = db.tutorApplications.find((a) => a.userId === user.id);
+    let existing = existingLocked;
     if (existing) {
-      existing.profile = profile;
+      existing.profile = cleanProfile;
       existing.academicRecords = academicRecords;
       existing.uploadedDocuments = uploadedDocuments || [];
       existing.mergedPdfFileId = mergedPdfFileId || existing.mergedPdfFileId;
       existing.mergedPdfFilename = mergedPdfFilename || existing.mergedPdfFilename;
-      existing.status = status === 'submitted' && existing.status === 'verified' ? 'verified' : status;
+      existing.status = status;
       existing.blockReason = eligibility.reason;
       existing.updatedAt = now;
-      if (submit) existing.submittedAt = now;
+      if (submit) {
+        existing.agreedToTerms = true;
+        existing.agreedAt = now;
+        existing.submittedAt = now;
+      }
     } else {
       existing = {
         id: `tapp_${crypto.randomUUID().slice(0, 8)}`,
         userId: user.id,
         status,
         blockReason: eligibility.reason,
-        profile,
+        profile: cleanProfile,
         academicRecords,
         uploadedDocuments: uploadedDocuments || [],
         mergedPdfFileId,
         mergedPdfFilename,
+        agreedToTerms: submit ? true : undefined,
+        agreedAt: submit ? now : undefined,
         submittedAt: submit ? now : undefined,
         updatedAt: now,
       };
       db.tutorApplications.push(existing);
     }
 
-    if (profile.fullName) {
-      user.fullName = profile.fullName;
+    if (cleanProfile.fullName) {
+      user.fullName = cleanProfile.fullName;
     }
 
     recomputeAllMatches(db);
@@ -908,6 +957,7 @@ async function startServer() {
       tutorPreference,
       summaryPdfFileId,
       summaryPdfFilename,
+      agreedToTerms,
       submit,
     } = req.body as Partial<ParentApplication> & { submit?: boolean };
 
@@ -915,10 +965,47 @@ async function startServer() {
       return res.status(400).json({ error: 'Incomplete parent application payload.' });
     }
 
+    const existingLocked = db.parentApplications.find((a) => a.userId === user.id);
+    if (
+      existingLocked &&
+      (existingLocked.status === 'submitted' || existingLocked.status === 'matched')
+    ) {
+      return res.status(403).json({
+        error: 'ማመልከቻው አንዴ ከተላከ በኋላ ማስተካከል አይቻልም።',
+      });
+    }
+
+    const normalizedPhone = normalizeEthiopianPhone(parentProfile.phone || '');
+    if (!normalizedPhone) {
+      return res.status(400).json({
+        error: 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ።',
+      });
+    }
+    const phoneUsedElsewhere =
+      db.users.some((u) => u.id !== user.id && normalizeEthiopianPhone(u.phone) === normalizedPhone) ||
+      db.tutorApplications.some(
+        (t) => t.userId !== user.id && normalizeEthiopianPhone(t.profile.phone) === normalizedPhone
+      ) ||
+      db.parentApplications.some(
+        (p) => p.userId !== user.id && normalizeEthiopianPhone(p.parentProfile.phone) === normalizedPhone
+      );
+    if (phoneUsedElsewhere) {
+      return res.status(409).json({
+        error: 'ይህ የስልክ ቁጥር አስቀድሞ በሌላ አካውንት ተመዝግቧል። በአንድ ስልክ ቁጥር አንድ ጊዜ ብቻ መመዝገብ ይቻላል።',
+      });
+    }
+    const cleanParentProfile = { ...parentProfile, phone: normalizedPhone };
+
+    if (submit && !agreedToTerms) {
+      return res.status(400).json({
+        error: 'ማመልከቻውን ከመላክዎ በፊት ሁሉንም የግዴታ ስምምነቶች ማረጋገጥ አለብዎት።',
+      });
+    }
+
     const now = new Date().toISOString();
-    let existing = db.parentApplications.find((a) => a.userId === user.id);
+    let existing = existingLocked;
     if (existing) {
-      existing.parentProfile = parentProfile;
+      existing.parentProfile = cleanParentProfile;
       existing.kidsCountChoice = kidsCountChoice || '1';
       existing.kidsCountNumber = kidsCountNumber || kids.length;
       existing.kids = kids;
@@ -927,27 +1014,33 @@ async function startServer() {
       existing.summaryPdfFilename = summaryPdfFilename || existing.summaryPdfFilename;
       existing.status = submit ? 'submitted' : existing.status;
       existing.updatedAt = now;
-      if (submit) existing.submittedAt = now;
+      if (submit) {
+        existing.agreedToTerms = true;
+        existing.agreedAt = now;
+        existing.submittedAt = now;
+      }
     } else {
       existing = {
         id: `papp_${crypto.randomUUID().slice(0, 8)}`,
         userId: user.id,
         status: submit ? 'submitted' : 'draft',
-        parentProfile,
+        parentProfile: cleanParentProfile,
         kidsCountChoice: kidsCountChoice || '1',
         kidsCountNumber: kidsCountNumber || kids.length,
         kids,
         tutorPreference,
         summaryPdfFileId,
         summaryPdfFilename,
+        agreedToTerms: submit ? true : undefined,
+        agreedAt: submit ? now : undefined,
         submittedAt: submit ? now : undefined,
         updatedAt: now,
       };
       db.parentApplications.push(existing);
     }
 
-    if (parentProfile.fullName) {
-      user.fullName = parentProfile.fullName;
+    if (cleanParentProfile.fullName) {
+      user.fullName = cleanParentProfile.fullName;
     }
 
     recomputeAllMatches(db);
