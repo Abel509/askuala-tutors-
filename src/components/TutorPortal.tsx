@@ -1399,14 +1399,26 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
               )}
 
               <div className="mt-6 pt-5 border-t border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3 no-print">
-                <button
-                  type="button"
-                  onClick={handlePreviousOrExit}
-                  disabled={saving}
-                  className="min-h-[44px] px-5 py-2.5 rounded-xl border-2 border-[#14532d] bg-white font-bold text-[#14532d] hover:bg-[#f0fdf4] cursor-pointer"
-                >
-                  {step === 1 ? '← Exit to Home' : '← Previous'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePreviousOrExit}
+                    disabled={saving}
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl border-2 border-[#14532d] bg-white font-bold text-[#14532d] hover:bg-[#f0fdf4] cursor-pointer"
+                  >
+                    {step === 1 ? '← Exit to Home' : '← Previous'}
+                  </button>
+                  {step > 1 && (
+                    <button
+                      type="button"
+                      onClick={onExitToHome}
+                      disabled={saving}
+                      className="min-h-[44px] px-4 py-2.5 rounded-xl border-2 border-[#22c55e] bg-[#f0fdf4] font-bold text-[#14532d] hover:bg-[#dcfce7] cursor-pointer"
+                    >
+                      Home
+                    </button>
+                  )}
+                </div>
 
                 {step < 4 ? (
                   <button

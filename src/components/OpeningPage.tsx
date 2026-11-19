@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, BookOpenCheck, Users } from 'lucide-react';
-import heroTutorImg from '../assets/images/ethiopian_tutor_scene_1795070766343.jpg';
+import heroTutorImg from '../assets/images/ethiopian_tutor_boy_1795096505461.jpg';
 import type { UserAccount, UserRole } from '../types/app';
 
 interface OpeningPageProps {

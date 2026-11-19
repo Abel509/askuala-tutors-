@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Download, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { AdminConsole } from './components/AdminConsole';
 import { AuthModal } from './components/AuthModal';
 import { OpeningPage } from './components/OpeningPage';
@@ -13,7 +13,6 @@ import { TutorPortal } from './components/TutorPortal';
 import type { ParentApplication, TutorApplication, UserAccount, UserRole } from './types/app';
 import {
   fetchCurrentSession,
-  isStandaloneFileMode,
   logoutAccount,
   type AuthResponse,
 } from './utils/api';
@@ -140,11 +139,9 @@ export default function App() {
       setOwnerClicks(next);
       clickResetRef.current = window.setTimeout(() => {
         setOwnerClicks(0);
-      }, 4500);
+      }, 6000);
     }
   };
-
-  const showDownloadHtml = typeof window !== 'undefined' && !isStandaloneFileMode();
 
   return (
     <div className="min-h-screen flex flex-col bg-[#15803d] text-[#0f172a] font-english">
@@ -167,7 +164,9 @@ export default function App() {
             <span className="bg-white text-[#14532d] px-2.5 py-0.5 rounded-md font-amharic font-extrabold text-base sm:text-lg leading-tight shadow-sm">
               ኣስኳላ
             </span>
-            <span>Tutors</span>
+            <span>
+              <span className="font-amharic">ኣስኳላ</span> Tutors
+            </span>
           </button>
 
           {/* Navigation — Only Home */}
@@ -185,17 +184,6 @@ export default function App() {
 
           {/* Header Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {showDownloadHtml && (
-              <a
-                href="/api/download-single-html"
-                download="index.html"
-                className="inline-flex px-3 py-2 rounded-xl border border-[#86efac] bg-[#14532d] text-white text-xs font-bold hover:bg-[#15803d] transition-colors items-center gap-1.5 whitespace-nowrap"
-              >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                <span className="hidden sm:inline">Download index.html</span>
-                <span className="sm:hidden">index.html</span>
-              </a>
-            )}
             {user ? (
               <button
                 type="button"
@@ -283,7 +271,7 @@ export default function App() {
 
       {/* Crisp White Accessible Footer + Hidden 4-Click Owner Access in Lower-Last-Right Corner of Home */}
       <footer className="relative border-t-[3px] border-[#14532d] bg-white text-[#14532d] py-5 px-4 sm:px-6 lg:px-8 text-sm no-print">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 pr-10">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-0.5">
             <p className="font-bold">
               &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span> Tutors
@@ -294,23 +282,12 @@ export default function App() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {showDownloadHtml && (
-              <a
-                href="/api/download-single-html"
-                download="index.html"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border-2 border-[#14532d] bg-[#14532d] text-white text-xs font-bold hover:bg-[#166534] transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Download Single index.html</span>
-              </a>
-            )}
-
+          <div className="flex flex-wrap items-center gap-3 min-h-[36px]">
             {view === 'home' && ownerRevealed && (
               <button
                 type="button"
                 onClick={() => setView('admin')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-xs font-bold hover:bg-[#dcfce7] transition-colors cursor-pointer"
+                className="relative z-10 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-xs font-bold hover:bg-[#dcfce7] transition-colors cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Owner Access</span>
@@ -319,13 +296,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* Invisible 4-click spot at the lower last right corner of Home */}
+        {/* Invisible 4-click spot covering the lower last right corner of Home */}
         {view === 'home' && !ownerRevealed && (
           <button
             type="button"
             onClick={handleSecretCornerTap}
             aria-label="Footer corner"
-            className="absolute right-1 bottom-1 w-12 h-10 bg-transparent border-0 opacity-0 cursor-default select-none focus:outline-none"
+            className="absolute right-0 bottom-0 w-44 h-full bg-transparent border-0 opacity-0 cursor-default select-none focus:outline-none"
           />
         )}
       </footer>
