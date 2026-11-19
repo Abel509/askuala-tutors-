@@ -1,0 +1,319 @@
+{
+  "users": [
+    {
+      "id": "user_admin_1",
+      "phone": "+251911000000",
+      "role": "admin",
+      "fullName": "Askuala Coordinator",
+      "passwordSalt": "6f66be788db430a3b978d5e0419f7c3c",
+      "passwordHash": "55bc00d06deeac549583940fcd8a516b18314f21da1a175a1076af76d28a3d3a5b3492c386097f754ad16127a68d529e52635d649767185f730dfcf52a85c3a9",
+      "createdAt": "2026-11-19T06:50:56.423Z"
+    },
+    {
+      "id": "user_tutor_1",
+      "phone": "+251911223344",
+      "role": "tutor",
+      "fullName": "Dawit Tesfaye Bekele",
+      "passwordSalt": "b82e8b24422d722281bbccdc1c4a4156",
+      "passwordHash": "2bd8347ac966d565bfbb462a0579bcbeeb2e0f1da67576db03cbf071d5cbefc409e22b062ec8207ca0e524cdf1f5430786a4ae25d7e310928975bd7638e8d248",
+      "createdAt": "2026-11-19T06:50:56.423Z"
+    },
+    {
+      "id": "user_tutor_2",
+      "phone": "+251922334455",
+      "role": "tutor",
+      "fullName": "Mekdes Alemu Girma",
+      "passwordSalt": "a4e82801ccca270035883b9de6432a23",
+      "passwordHash": "86e04a71813054297eb888c081444ad0b3707ee51e3c45ff58137a8271d33f1ee5a5549bfa6d734d759ee0302e74b121b723993775101084e58e06221f2287af",
+      "createdAt": "2026-11-19T06:50:56.423Z"
+    },
+    {
+      "id": "user_parent_1",
+      "phone": "+251933445566",
+      "role": "parent",
+      "fullName": "አቶ ታደሰ ገብረማርያም",
+      "passwordSalt": "f5f2b6802dd98ca98139303de183d5a1",
+      "passwordHash": "334a11dd6d5aba20e79928be52adfd1a25846f0afd2b431c7c0fee553e11faf68f09c45c1a8bd3e4f0dbc312e0d8cfc145e64725a9c769897a5674665cdd478a",
+      "createdAt": "2026-11-19T06:50:56.423Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "64e1d9e574a5d028d4d9de91e6dd5619d301c656dd0a872c",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T06:51:01.691Z"
+    },
+    {
+      "token": "8be11c973c68797d6cb1327de7dcdc9146467709ee94bd1e",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T09:05:36.201Z"
+    },
+    {
+      "token": "67cb66db7c6cb9ffacf864d61beb31ab01503a7d533b9fe9",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T09:24:55.322Z"
+    },
+    {
+      "token": "bddfda74a67b80e3303558805f023f75b447928fcf4412f4",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T09:24:55.570Z"
+    },
+    {
+      "token": "07f9b1899a7855d2487e4c932136294a34d3d601cba93724",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T09:35:29.401Z"
+    },
+    {
+      "token": "201dba22714b2672c38053e487a9d74c7d7e21a384b18805",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-19T09:35:29.425Z"
+    }
+  ],
+  "tutorApplications": [
+    {
+      "id": "tapp_1",
+      "userId": "user_tutor_1",
+      "status": "verified",
+      "profile": {
+        "fullName": "Dawit Tesfaye Bekele",
+        "phone": "+251911223344",
+        "sex": "male",
+        "educationLevel": "college",
+        "tutoringMode": "both",
+        "priorExperience": "2_plus_years",
+        "preferredLocations": [
+          "4_kilo",
+          "5_kilo",
+          "6_kilo",
+          "piassa",
+          "bole"
+        ],
+        "preferredSubjects": [
+          "mathematics",
+          "physics",
+          "chemistry",
+          "ict",
+          "entrance_exam"
+        ],
+        "preferredDays": [
+          "monday",
+          "wednesday",
+          "friday",
+          "saturday"
+        ],
+        "weekdaySlots": [
+          "wd_10_11",
+          "wd_11_12",
+          "wd_12_1"
+        ],
+        "weekendSlots": [
+          "we_3_4",
+          "we_4_5",
+          "we_9_10",
+          "we_10_11"
+        ],
+        "expectedFeePerHour": "500"
+      },
+      "academicRecords": {
+        "grade9Avg": "91.5",
+        "grade10Avg": "93",
+        "grade11Avg": "90.4",
+        "grade12Avg": "92.2",
+        "esslceOutOf600": "548"
+      },
+      "uploadedDocuments": [
+        {
+          "recordKey": "grade_9_12_transcript",
+          "label": "Grades 9–12 Complete Transcripts (PDF)",
+          "fileId": "sample_tutor1_transcript",
+          "filename": "Dawit_Grades_9_12_Transcript.pdf",
+          "pageCount": 1,
+          "sizeBytes": 4200
+        }
+      ],
+      "mergedPdfFileId": "sample_tutor1_dossier",
+      "mergedPdfFilename": "Dawit_Tesfaye_Askuala_Application.pdf",
+      "submittedAt": "2026-11-19T06:50:56.423Z",
+      "updatedAt": "2026-11-19T06:50:56.423Z"
+    },
+    {
+      "id": "tapp_2",
+      "userId": "user_tutor_2",
+      "status": "verified",
+      "profile": {
+        "fullName": "Mekdes Alemu Girma",
+        "phone": "+251922334455",
+        "sex": "female",
+        "educationLevel": "bachelors",
+        "tutoringMode": "both",
+        "priorExperience": "2_plus_years",
+        "preferredLocations": [
+          "bole",
+          "megenagna",
+          "cmc",
+          "ayat",
+          "gerji",
+          "kazanchis",
+          "4_kilo"
+        ],
+        "preferredSubjects": [
+          "mathematics",
+          "biology",
+          "chemistry",
+          "english",
+          "spoken_english",
+          "afan_oromo",
+          "entrance_exam"
+        ],
+        "preferredDays": [
+          "tuesday",
+          "thursday",
+          "saturday",
+          "sunday"
+        ],
+        "weekdaySlots": [
+          "wd_10_11",
+          "wd_11_12"
+        ],
+        "weekendSlots": [
+          "we_3_4",
+          "we_4_5",
+          "we_8_9",
+          "we_9_10",
+          "we_10_11"
+        ],
+        "expectedFeePerHour": "600"
+      },
+      "academicRecords": {
+        "graduationCgpa": "3.84",
+        "esslceOutOf600": "532"
+      },
+      "uploadedDocuments": [
+        {
+          "recordKey": "graduation_cgpa_transcript",
+          "label": "Bachelor's Degree & Official CGPA Transcript (PDF)",
+          "fileId": "sample_tutor2_transcript",
+          "filename": "Mekdes_Degree_CGPA_Transcript.pdf",
+          "pageCount": 1,
+          "sizeBytes": 3900
+        }
+      ],
+      "mergedPdfFileId": "sample_tutor2_dossier",
+      "mergedPdfFilename": "Mekdes_Alemu_Askuala_Application.pdf",
+      "submittedAt": "2026-11-19T06:50:56.423Z",
+      "updatedAt": "2026-11-19T06:50:56.423Z"
+    }
+  ],
+  "parentApplications": [
+    {
+      "id": "papp_1",
+      "userId": "user_parent_1",
+      "status": "submitted",
+      "parentProfile": {
+        "fullName": "አቶ ታደሰ ገብረማርያም",
+        "phone": "+251933445566",
+        "location": "4_kilo",
+        "expectedPaymentPerHour": "max_600"
+      },
+      "kidsCountChoice": "1",
+      "kidsCountNumber": 1,
+      "kids": [
+        {
+          "id": "kid_1",
+          "gradeLevel": "grade_8",
+          "selectedDays": [
+            "monday",
+            "wednesday",
+            "saturday"
+          ],
+          "hoursPerDay": "2",
+          "weekdaySlots": [
+            "wd_10_11",
+            "wd_11_12"
+          ],
+          "weekendSlots": [
+            "we_3_4",
+            "we_4_5"
+          ],
+          "schoolType": "private",
+          "privateCurriculum": "standard",
+          "preferredSubjects": [
+            "mathematics",
+            "physics",
+            "english"
+          ],
+          "subjectStatus": "medium"
+        }
+      ],
+      "tutorPreference": {
+        "sex": "any",
+        "mode": "in_person"
+      },
+      "submittedAt": "2026-11-19T06:50:56.423Z",
+      "updatedAt": "2026-11-19T06:50:56.423Z"
+    }
+  ],
+  "matches": [
+    {
+      "id": "match_ce466f01",
+      "parentAppId": "papp_1",
+      "tutorAppId": "tapp_1",
+      "parentName": "አቶ ታደሰ ገብረማርያም",
+      "parentPhone": "+251933445566",
+      "parentLocation": "4_kilo",
+      "parentBudget": "max_600",
+      "tutorName": "Dawit Tesfaye Bekele",
+      "tutorPhone": "+251911223344",
+      "tutorEducation": "college",
+      "tutorFee": "500",
+      "tutorMode": "both",
+      "compatibilityScore": 85,
+      "matchedSubjects": [
+        "mathematics",
+        "physics"
+      ],
+      "matchedLocations": [
+        "4_kilo"
+      ],
+      "matchedSchedule": [
+        "wd_10_11",
+        "wd_11_12",
+        "we_3_4",
+        "we_4_5"
+      ],
+      "status": "suggested",
+      "updatedAt": "2026-11-19T06:50:56.672Z"
+    },
+    {
+      "id": "match_f61685db",
+      "parentAppId": "papp_1",
+      "tutorAppId": "tapp_2",
+      "parentName": "አቶ ታደሰ ገብረማርያም",
+      "parentPhone": "+251933445566",
+      "parentLocation": "4_kilo",
+      "parentBudget": "max_600",
+      "tutorName": "Mekdes Alemu Girma",
+      "tutorPhone": "+251922334455",
+      "tutorEducation": "bachelors",
+      "tutorFee": "600",
+      "tutorMode": "both",
+      "compatibilityScore": 72,
+      "matchedSubjects": [
+        "mathematics",
+        "english"
+      ],
+      "matchedLocations": [
+        "4_kilo"
+      ],
+      "matchedSchedule": [
+        "wd_10_11",
+        "wd_11_12",
+        "we_3_4",
+        "we_4_5"
+      ],
+      "status": "suggested",
+      "updatedAt": "2026-11-19T06:50:56.672Z"
+    }
+  ],
+  "ownerPasscode": "askuala@2026"
+}

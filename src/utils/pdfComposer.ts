@@ -1,0 +1,453 @@
+import { PDFDocument } from 'pdf-lib';
+import {
+  ADDIS_LOCATIONS,
+  DAYS_OF_WEEK,
+  EDUCATION_LEVEL_LABELS,
+  KID_GRADE_LEVELS,
+  SUBJECTS,
+  WEEKDAY_SLOTS,
+  WEEKEND_SLOTS,
+} from '../data/catalog';
+import type {
+  ParentApplication,
+  TutorAcademicRecords,
+  TutorProfileData,
+  UploadedPdfDoc,
+} from '../types/app';
+
+const PAGE_W = 1240;
+const PAGE_H = 1754;
+const MARGIN = 76;
+
+interface SheetLine {
+  type: 'section' | 'row' | 'note' | 'spacer';
+  label?: string;
+  value?: string;
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [''];
+}
+
+function renderLinesToPages(
+  headerTitle: string,
+  headerSubtitle: string,
+  lines: SheetLine[],
+  isAmharic: boolean
+): string[] {
+  const pages: string[] = [];
+  let pageIndex = 1;
+
+  const createCanvas = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = PAGE_W;
+    canvas.height = PAGE_H;
+    const ctx = canvas.getContext('2d')!;
+    // Crisp white paper background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+
+    // Deep forest green header banner
+    ctx.fillStyle = '#14532d';
+    ctx.fillRect(0, 0, PAGE_W, 168);
+
+    // Bright green bottom rule under header
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(0, 164, PAGE_W, 6);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = isAmharic
+      ? 'bold 34px "Noto Sans Ethiopic", "Times New Roman", serif'
+      : 'bold 34px "Times New Roman", "Noto Sans Ethiopic", serif';
+    ctx.fillText(headerTitle, MARGIN, 78);
+
+    ctx.fillStyle = '#dcfce7';
+    ctx.font = isAmharic
+      ? '21px "Noto Sans Ethiopic", "Times New Roman", serif'
+      : '21px "Times New Roman", "Noto Sans Ethiopic", serif';
+    ctx.fillText(headerSubtitle, MARGIN, 122);
+
+    return { canvas, ctx };
+  };
+
+  let { canvas, ctx } = createCanvas();
+  let y = 230;
+  const maxContentY = PAGE_H - 110;
+
+  const finishPage = () => {
+    ctx.fillStyle = '#475569';
+    ctx.font = '18px "Times New Roman", "Noto Sans Ethiopic", serif';
+    ctx.fillText(
+      `ኣስኳላ Tutors  ·  Page ${pageIndex}  ·  Generated ${new Date().toLocaleDateString()}`,
+      MARGIN,
+      PAGE_H - 48
+    );
+    pages.push(canvas.toDataURL('image/png'));
+    pageIndex += 1;
+  };
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > maxContentY) {
+      finishPage();
+      const next = createCanvas();
+      canvas = next.canvas;
+      ctx = next.ctx;
+      y = 230;
+    }
+  };
+
+  const baseFont = isAmharic
+    ? '"Noto Sans Ethiopic", "Times New Roman", sans-serif'
+    : '"Times New Roman", "Noto Sans Ethiopic", serif';
+
+  for (const item of lines) {
+    if (item.type === 'spacer') {
+      y += 18;
+      continue;
+    }
+
+    if (item.type === 'section') {
+      ensureSpace(64);
+      y += 14;
+      ctx.fillStyle = '#14532d';
+      ctx.font = `bold 25px ${baseFont}`;
+      ctx.fillText(item.label || '', MARGIN, y);
+      y += 12;
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(MARGIN, y, PAGE_W - MARGIN * 2, 2);
+      y += 30;
+      continue;
+    }
+
+    if (item.type === 'note') {
+      ctx.font = `20px ${baseFont}`;
+      const wrapped = wrapText(ctx, item.label || '', PAGE_W - MARGIN * 2);
+      ensureSpace(wrapped.length * 30 + 14);
+      ctx.fillStyle = '#15803d';
+      for (const w of wrapped) {
+        ctx.fillText(w, MARGIN, y);
+        y += 30;
+      }
+      y += 6;
+      continue;
+    }
+
+    if (item.type === 'row') {
+      const labelWidth = 340;
+      const valMaxW = PAGE_W - MARGIN * 2 - labelWidth - 20;
+      ctx.font = `21px ${baseFont}`;
+      const wrappedVal = wrapText(ctx, item.value || '—', valMaxW);
+      const rowHeight = Math.max(34, wrappedVal.length * 30 + 12);
+      ensureSpace(rowHeight);
+
+      ctx.fillStyle = '#14532d';
+      ctx.font = `bold 20px ${baseFont}`;
+      ctx.fillText(item.label || '', MARGIN, y);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `21px ${baseFont}`;
+      let vy = y;
+      for (const line of wrappedVal) {
+        ctx.fillText(line, MARGIN + labelWidth + 20, vy);
+        vy += 30;
+      }
+
+      y += rowHeight;
+      ctx.fillStyle = '#dcfce7';
+      ctx.fillRect(MARGIN, y - 10, PAGE_W - MARGIN * 2, 1);
+    }
+  }
+
+  finishPage();
+  return pages;
+}
+
+function lookupLabel(list: { id: string; en: string; am: string }[], id: string, lang: 'en' | 'am') {
+  const found = list.find((item) => item.id === id);
+  if (!found) return id;
+  return lang === 'am' ? found.am : found.en;
+}
+
+export async function buildTutorUnifiedPdf(
+  profile: TutorProfileData,
+  academicRecords: TutorAcademicRecords,
+  uploadedDocuments: UploadedPdfDoc[]
+): Promise<{ pdfBytes: Uint8Array; totalPages: number; previewPageUrls: string[] }> {
+  const modeMap: Record<string, string> = {
+    online: 'Online Only',
+    in_person: 'In-Person Only',
+    both: 'Both Online & In-Person',
+  };
+  const expMap: Record<string, string> = {
+    first_time: 'First Time Tutor',
+    '1_year': '1 Year Experience',
+    '2_plus_years': '2+ Years Experience',
+  };
+  const feeMap: Record<string, string> = {
+    '400': '400 ETB / hour',
+    '500': '500 ETB / hour',
+    '600': '600 ETB / hour',
+    '700_plus': '700 ETB and over / hour',
+  };
+
+  const lines: SheetLine[] = [
+    { type: 'section', label: '1. Applicant Profile & Tutoring Preferences' },
+    { type: 'row', label: 'Full Name', value: profile.fullName },
+    { type: 'row', label: 'Ethiopian Phone No.', value: profile.phone },
+    { type: 'row', label: 'Sex', value: profile.sex === 'male' ? 'Male' : 'Female' },
+    {
+      type: 'row',
+      label: 'Education Level',
+      value: EDUCATION_LEVEL_LABELS[profile.educationLevel] || profile.educationLevel,
+    },
+    { type: 'row', label: 'Tutoring Mode', value: modeMap[profile.tutoringMode] || '—' },
+    { type: 'row', label: 'Prior Experience', value: expMap[profile.priorExperience] || '—' },
+    {
+      type: 'row',
+      label: 'Expected Hourly Fee',
+      value: feeMap[profile.expectedFeePerHour] || '—',
+    },
+    {
+      type: 'row',
+      label: 'Preferred Locations',
+      value: profile.preferredLocations
+        .map((id) => lookupLabel(ADDIS_LOCATIONS, id, 'en'))
+        .join(', '),
+    },
+    {
+      type: 'row',
+      label: 'Preferred Subjects',
+      value: profile.preferredSubjects.map((id) => lookupLabel(SUBJECTS, id, 'en')).join(', '),
+    },
+    {
+      type: 'row',
+      label: 'Preferred Days',
+      value: profile.preferredDays.map((id) => lookupLabel(DAYS_OF_WEEK, id, 'en')).join(', '),
+    },
+    {
+      type: 'row',
+      label: 'Weekday Schedule',
+      value:
+        profile.weekdaySlots.length > 0
+          ? profile.weekdaySlots.map((id) => lookupLabel(WEEKDAY_SLOTS, id, 'en')).join(', ')
+          : 'None selected',
+    },
+    {
+      type: 'row',
+      label: 'Weekend Schedule',
+      value:
+        profile.weekendSlots.length > 0
+          ? profile.weekendSlots.map((id) => lookupLabel(WEEKEND_SLOTS, id, 'en')).join(', ')
+          : 'None selected',
+    },
+    { type: 'section', label: '2. Academic Records (Verified ≥ 87% Threshold)' },
+  ];
+
+  if (academicRecords.grade9Avg)
+    lines.push({ type: 'row', label: 'Grade 9 Average', value: `${academicRecords.grade9Avg}%` });
+  if (academicRecords.grade10Avg)
+    lines.push({ type: 'row', label: 'Grade 10 Average', value: `${academicRecords.grade10Avg}%` });
+  if (academicRecords.grade11Avg)
+    lines.push({ type: 'row', label: 'Grade 11 Average', value: `${academicRecords.grade11Avg}%` });
+  if (academicRecords.grade12Avg)
+    lines.push({ type: 'row', label: 'Grade 12 Average', value: `${academicRecords.grade12Avg}%` });
+  if (academicRecords.esslceOutOf600)
+    lines.push({
+      type: 'row',
+      label: 'ESSLCE Score (/600)',
+      value: `${academicRecords.esslceOutOf600} / 600`,
+    });
+  if (academicRecords.graduationCgpa)
+    lines.push({
+      type: 'row',
+      label: 'Graduation CGPA',
+      value: academicRecords.graduationCgpa,
+    });
+
+  lines.push({ type: 'section', label: '3. Attached Academic PDF Documents' });
+  if (uploadedDocuments.length === 0) {
+    lines.push({ type: 'note', label: 'No supporting PDF documents attached.' });
+  } else {
+    for (const doc of uploadedDocuments) {
+      lines.push({
+        type: 'row',
+        label: doc.label,
+        value: `${doc.filename} (${doc.pageCount} page${doc.pageCount > 1 ? 's' : ''} appended below)`,
+      });
+    }
+  }
+
+  const summaryImages = renderLinesToPages(
+    'ኣስኳላ Tutors — Tutor Application Dossier',
+    `Applicant: ${profile.fullName || 'Tutor'}  ·  All Submitted Details & Visible Academic PDFs`,
+    lines,
+    false
+  );
+
+  const mergedPdf = await PDFDocument.create();
+
+  for (const dataUrl of summaryImages) {
+    const imgBytes = await fetch(dataUrl).then((r) => r.arrayBuffer());
+    const pngImage = await mergedPdf.embedPng(imgBytes);
+    const page = mergedPdf.addPage([595.28, 841.89]);
+    page.drawImage(pngImage, { x: 0, y: 0, width: 595.28, height: 841.89 });
+  }
+
+  // Append every visible page of every uploaded PDF
+  const { getPdfBytes } = await import('./api');
+  for (const doc of uploadedDocuments) {
+    const rawBytes = await getPdfBytes(doc.fileId);
+    if (!rawBytes) continue;
+    const uploadedPdf = await PDFDocument.load(rawBytes, { ignoreEncryption: true });
+    const indices = uploadedPdf.getPageIndices();
+    const copiedPages = await mergedPdf.copyPages(uploadedPdf, indices);
+    for (const cp of copiedPages) {
+      mergedPdf.addPage(cp);
+    }
+  }
+
+  const pdfBytes = await mergedPdf.save();
+  return { pdfBytes, totalPages: mergedPdf.getPageCount(), previewPageUrls: summaryImages };
+}
+
+export async function buildParentAmharicPdf(
+  app: Omit<ParentApplication, 'id' | 'userId' | 'status' | 'updatedAt'>
+): Promise<{ pdfBytes: Uint8Array; totalPages: number; previewPageUrls: string[] }> {
+  const budgetAm: Record<string, string> = {
+    '400_500': '400–500 ብር በሰዓት',
+    max_600: 'ከ600 ብር ያልበለጠ',
+    '600_700_efficiency': 'ጥራትን እመርጣለሁ — 600–700 ብር ችግር የለውም',
+  };
+  const sexAm: Record<string, string> = {
+    male: 'ወንድ',
+    female: 'ሴት',
+    any: 'ምንም ችግር የለውም',
+  };
+  const modeAm: Record<string, string> = {
+    online: 'በኦንላይን',
+    in_person: 'በአካል (ቤት ድረስ)',
+  };
+  const statusAm: Record<string, string> = {
+    basic: 'መሠረታዊ',
+    medium: 'መካከለኛ',
+    advanced: 'ከፍተኛ',
+  };
+
+  const lines: SheetLine[] = [
+    { type: 'section', label: '1. የወላጅ መገለጫ' },
+    { type: 'row', label: 'ሙሉ ስም', value: app.parentProfile.fullName },
+    { type: 'row', label: 'ስልክ ቁጥር', value: app.parentProfile.phone },
+    {
+      type: 'row',
+      label: 'የመኖሪያ አካባቢ',
+      value: lookupLabel(ADDIS_LOCATIONS, app.parentProfile.location, 'am'),
+    },
+    {
+      type: 'row',
+      label: 'በሰዓት የሚከፈል ክፍያ',
+      value: budgetAm[app.parentProfile.expectedPaymentPerHour] || '—',
+    },
+    { type: 'section', label: `2. የልጆች መገለጫ (ጠቅላላ ልጆች፡ ${app.kids.length})` },
+  ];
+
+  app.kids.forEach((kid, idx) => {
+    lines.push({ type: 'spacer' });
+    lines.push({ type: 'note', label: `ልጅ ${idx + 1}` });
+    lines.push({
+      type: 'row',
+      label: 'የትምህርት ደረጃ',
+      value: lookupLabel(KID_GRADE_LEVELS, kid.gradeLevel, 'am'),
+    });
+    lines.push({
+      type: 'row',
+      label: 'የጥናት ቀናት',
+      value: kid.selectedDays.map((d) => lookupLabel(DAYS_OF_WEEK, d, 'am')).join('፣ '),
+    });
+    lines.push({
+      type: 'row',
+      label: 'በቀን የጥናት ሰዓት',
+      value: kid.hoursPerDay ? `${kid.hoursPerDay} ሰዓት` : '—',
+    });
+    lines.push({
+      type: 'row',
+      label: 'የሳምንቱ ሰዓት (ኢትዮጵያዊ)',
+      value:
+        kid.weekdaySlots.length > 0
+          ? kid.weekdaySlots.map((s) => lookupLabel(WEEKDAY_SLOTS, s, 'am')).join('፣ ')
+          : 'አልተመረጠም',
+    });
+    lines.push({
+      type: 'row',
+      label: 'የቅዳሜ እና እሑድ ሰዓት',
+      value:
+        kid.weekendSlots.length > 0
+          ? kid.weekendSlots.map((s) => lookupLabel(WEEKEND_SLOTS, s, 'am')).join('፣ ')
+          : 'አልተመረጠም',
+    });
+    lines.push({
+      type: 'row',
+      label: 'የትምህርት ቤት ዓይነት',
+      value:
+        kid.schoolType === 'private'
+          ? `የግል (${kid.privateCurriculum === 'international' ? 'ዓለም አቀፍ ሥርዓተ ትምህርት' : 'መደበኛ ሥርዓተ ትምህርት'})`
+          : 'የመንግሥት',
+    });
+    lines.push({
+      type: 'row',
+      label: 'የሚፈለጉ ትምህርቶች',
+      value: kid.preferredSubjects.map((s) => lookupLabel(SUBJECTS, s, 'am')).join('፣ '),
+    });
+    lines.push({
+      type: 'row',
+      label: 'የልጁ የትምህርት ሁኔታ',
+      value: statusAm[kid.subjectStatus] || '—',
+    });
+  });
+
+  lines.push({ type: 'section', label: '3. የመምህር ምርጫ' });
+  lines.push({
+    type: 'row',
+    label: 'የመምህር ጾታ',
+    value: sexAm[app.tutorPreference.sex] || '—',
+  });
+  lines.push({
+    type: 'row',
+    label: 'የማስተማሪያ ዘዴ',
+    value: modeAm[app.tutorPreference.mode] || '—',
+  });
+
+  const summaryImages = renderLinesToPages(
+    'ኣስኳላ Tutors — የወላጅ ማመልከቻ ማጠቃለያ',
+    `ወላጅ፡ ${app.parentProfile.fullName || ''}  ·  የተመዘገበ የቤተሰብ መረጃ`,
+    lines,
+    true
+  );
+
+  const pdfDoc = await PDFDocument.create();
+  for (const dataUrl of summaryImages) {
+    const imgBytes = await fetch(dataUrl).then((r) => r.arrayBuffer());
+    const pngImage = await pdfDoc.embedPng(imgBytes);
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    page.drawImage(pngImage, { x: 0, y: 0, width: 595.28, height: 841.89 });
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  return { pdfBytes, totalPages: pdfDoc.getPageCount(), previewPageUrls: summaryImages };
+}

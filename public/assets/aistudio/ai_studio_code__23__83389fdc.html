@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ኣስኳላ Tutors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green-margin: #14532d;
+      --green-space: #15803d;
+      --green-text: #15803d;
+      --green-border: #22c55e;
+      --white: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body, input, select, textarea, button {
+      font-family: 'Times New Roman', Times, 'Noto Sans Ethiopic', serif;
+    }
+
+    body {
+      background: var(--green-space);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-left: 18px solid var(--green-margin);
+      border-right: 18px solid var(--green-margin);
+    }
+
+    @media (max-width: 600px) {
+      body {
+        border-left: 8px solid var(--green-margin);
+        border-right: 8px solid var(--green-margin);
+      }
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--green-margin), #166534);
+      color: var(--white);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 3px solid var(--green-border);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .brand-badge {
+      background: var(--white);
+      color: var(--green-margin);
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 1.05rem;
+    }
+
+    .brand-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lang-btn, .nav-btn {
+      background: rgba(255,255,255,0.16);
+      color: var(--white);
+      border: 1.5px solid rgba(255,255,255,0.6);
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: 0.2s;
+    }
+
+    .lang-btn:hover, .nav-btn:hover {
+      background: rgba(255,255,255,0.28);
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1000px;
+      margin: 28px auto;
+      padding: 0 18px;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Green Instructions on White Background */
+    .instruction-box {
+      background: var(--white);
+      color: var(--green-text);
+      border: 2px solid var(--green-border);
+      border-left: 7px solid #16a34a;
+      border-radius: 10px;
+      padding: 13px 16px;
+      margin-bottom: 20px;
+      font-weight: 700;
+      font-size: 0.98rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      box-shadow: 0 3px 10px rgba(21, 128, 61, 0.1);
+    }
+
+    .instruction-icon {
+      font-size: 1.15rem;
+      line-height: 1.3;
+    }
+
+    /* Landing Hero */
+    .hero-card {
+      background: var(--white);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+      border: 3px solid var(--green-margin);
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+    }
+
+    @media (max-width: 820px) {
+      .hero-card { grid-template-columns: 1fr; }
+    }
+
+    .hero-media {
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 420px;
+      position: relative;
+      overflow: hidden;
+      border-right: 2px solid #dcfce7;
+    }
+
+    .hero-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+
+    .hero-content {
+      padding: 44px 34px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--white);
+    }
+
+    .hero-title {
+      font-size: 2.7rem;
+      font-weight: 800;
+      color: var(--green-margin);
+      line-height: 1.2;
+      margin-bottom: 28px;
+    }
+
+    .role-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .role-option-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 22px;
+      border-radius: 12px;
+      border: 2px solid var(--green-border);
+      background: var(--white);
+      color: var(--green-margin);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .role-option-btn:hover {
+      border-color: var(--green-margin);
+      background: #f0fdf4;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(20, 83, 45, 0.16);
+    }
+
+    .role-option-btn.primary-role {
+      border-color: var(--green-margin);
+      background: var(--green-margin);
+      color: var(--white);
+    }
+
+    .role-option-btn.primary-role:hover {
+      background: #166534;
+    }
+
+    .role-option-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .role-option-desc {
+      font-size: 0.98rem;
+      opacity: 0.94;
+    }
+
+    .role-arrow {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    /* Cards & Forms */
+    .card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+      border: 3px solid var(--green-margin);
+      border-top: 7px solid var(--green-margin);
+      margin-bottom: 22px;
+    }
+
+    .auth-box {
+      max-width: 500px;
+      margin: 16px auto;
+    }
+
+    h2 {
+      color: var(--green-margin);
+      font-size: 1.65rem;
+      margin-bottom: 6px;
+    }
+
+    .subtext {
+      color: var(--muted);
+      font-size: 0.98rem;
+      margin-bottom: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 680px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.98rem;
+      margin-bottom: 6px;
+      color: var(--green-margin);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="file"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 9px;
+      font-size: 1rem;
+      background: var(--white);
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green-space);
+      box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16);
+    }
+
+    /* Missing / Invalid Field Direct Highlight */
+    .field-error {
+      border: 2.5px solid var(--danger) !important;
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.24) !important;
+      background-color: #fff5f5 !important;
+      border-radius: 10px;
+      animation: shakeField 0.35s ease;
+    }
+
+    @keyframes shakeField {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+      gap: 9px;
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 10px;
+    }
+
+    .check-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.93rem;
+      font-weight: 600;
+      background: #f8fafc;
+      color: var(--text);
+    }
+
+    .check-chip input {
+      width: auto;
+      accent-color: var(--green-space);
+    }
+
+    .radio-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .radio-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      background: #f8fafc;
+    }
+
+    .radio-card input { width: auto; accent-color: var(--green-space); }
+
+    .btn {
+      padding: 11px 22px;
+      border-radius: 9px;
+      border: none;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary { background: var(--green-margin); color: var(--white); }
+    .btn-primary:hover { background: #166534; }
+    .btn-green { background: #16a34a; color: var(--white); }
+    .btn-green:hover { background: #15803d; }
+    .btn-outline {
+      background: var(--white);
+      color: var(--green-margin);
+      border: 1.5px solid var(--green-border);
+    }
+    .btn-outline:hover { background: #f0fdf4; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .step-item {
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+      padding: 10px 6px;
+      border-radius: 10px;
+      background: #f0fdf4;
+      color: var(--green-margin);
+      border: 1.5px solid #bbf7d0;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .step-item.active {
+      background: var(--green-margin);
+      color: var(--white);
+      border-color: var(--green-margin);
+    }
+
+    .step-item.done {
+      background: #dcfce7;
+      color: #166534;
+      border-color: var(--green-border);
+    }
+
+    .alert {
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-weight: 700;
+      font-size: 0.98rem;
+    }
+
+    .alert-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 2px solid #fca5a5;
+    }
+
+    .alert-success {
+      background: var(--white);
+      color: var(--green-text);
+      border: 2px solid var(--green-border);
+    }
+
+    /* PDF Sheet Preview */
+    .pdf-sheet {
+      background: var(--white);
+      border: 2px solid var(--green-border);
+      border-radius: 10px;
+      padding: 28px;
+      box-shadow: 0 4px 18px rgba(20, 83, 45, 0.1);
+    }
+
+    .pdf-header {
+      border-bottom: 3px solid var(--green-margin);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pdf-section-title {
+      background: #f0fdf4;
+      color: var(--green-margin);
+      padding: 7px 12px;
+      font-weight: 700;
+      border-left: 5px solid var(--green-border);
+      margin: 18px 0 10px;
+      font-size: 1rem;
+    }
+
+    .pdf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.97rem;
+    }
+
+    .pdf-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    .pdf-table td:first-child {
+      font-weight: 700;
+      color: var(--green-margin);
+      width: 40%;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 820px) {
+      .admin-grid { grid-template-columns: 1fr; }
+    }
+
+    .admin-item {
+      border: 1.5px solid var(--green-border);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 12px;
+      background: var(--white);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #f0fdf4;
+      color: var(--green-margin);
+      border: 1px solid #bbf7d0;
+      margin-right: 6px;
+    }
+
+    .badge-green { background: #dcfce7; color: #166534; }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      color: var(--green-margin);
+      font-size: 0.92rem;
+      font-weight: 700;
+      border-top: 3px solid var(--green-margin);
+      background: var(--white);
+      margin-top: auto;
+    }
+
+    .admin-link {
+      color: var(--green-space);
+      text-decoration: underline;
+      cursor: pointer;
+      margin-left: 10px;
+      font-weight: 700;
+    }
+
+    @media print {
+      body { border: none !important; background: #fff !important; }
+      header, footer, .stepper, .btn-row, .instruction-box { display: none !important; }
+      main { margin: 0; max-width: 100%; padding: 0; }
+      .card { border: none; box-shadow: none; padding: 0; }
+      .pdf-sheet { border: none; box-shadow: none; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand" id="brandHomeBtn">
+    <span class="brand-badge">ኣስኳላ</span>
+    <span class="brand-title">ኣስኳላ Tutors</span>
+  </div>
+  <div class="header-actions">
+    <span id="userBadge" class="hidden" style="font-size:0.9rem; opacity:0.95;"></span>
+    <button id="logoutBtn" class="nav-btn hidden" data-i18n="logout">Sign Out</button>
+    <button class="lang-btn" id="langToggleBtn">አማርኛ / English</button>
+  </div>
+</header>
+
+<main>
+  <!-- 1. LANDING PAGE (ONLY Picture, Platform Name, and Two Choices) -->
+  <section id="view-landing">
+    <div class="hero-card">
+      <div class="hero-media">
+        <img id="heroPhoto" src="hero.jpg" alt="Ethiopian Tutor, Student, and Smiling Father" />
+        <svg id="heroSvgFallback" class="hidden" viewBox="0 0 520 420" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <rect width="520" height="420" fill="#f0fdf4"/>
+          <text x="260" y="185" text-anchor="middle" fill="#14532d" font-size="18" font-weight="700" font-family="Times New Roman, serif">
+            Your Opening Photo Goes Here
+          </text>
+          <text x="260" y="218" text-anchor="middle" fill="#15803d" font-size="14" font-family="Times New Roman, serif">
+            Click "Owner Access" below -> Unlock -> Set Opening Picture
+          </text>
+          <text x="260" y="242" text-anchor="middle" fill="#15803d" font-size="13" font-family="Times New Roman, serif">
+            (Or place hero.jpg in the same folder as index.html)
+          </text>
+        </svg>
+      </div>
+
+      <div class="hero-content">
+        <h1 class="hero-title">ኣስኳላ Tutors</h1>
+
+        <!-- Two options on two separate lines -->
+        <div class="role-stack">
+          <button type="button" class="role-option-btn primary-role" id="btnChooseParent">
+            <div>
+              <span class="role-option-title" data-i18n="parentBtnTitle">Parent / ወላጅ</span>
+              <span class="role-option-desc" data-i18n="parentBtnDesc">Get excellent tutors for your kids • ለልጆችዎ ብቁ አስጠኚዎችን ያግኙ</span>
+            </div>
+            <span class="role-arrow">→</span>
+          </button>
+
+          <button type="button" class="role-option-btn" id="btnChooseTutor">
+            <div>
+              <span class="role-option-title">Tutor</span>
+              <span class="role-option-desc">Teach, learn, and earn at once</span>
+            </div>
+            <span class="role-arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. AUTHENTICATION VIEW -->
+  <section id="view-auth" class="hidden">
+    <div class="card auth-box">
+      <button type="button" class="btn btn-outline" style="margin-bottom:14px; padding:6px 12px; font-size:0.9rem;" id="authBackBtn" data-i18n="backHome">← Back</button>
+      <h2 id="authHeading">Sign In / Create Account</h2>
+
+      <div class="instruction-box" style="margin-top:10px;">
+        <span class="instruction-icon">✅</span>
+        <span id="authInstructionText" data-i18n="authInstruction">Instruction: Enter a valid email or exact Ethiopian phone number (09XXXXXXXX or 07XXXXXXXX). Each email/phone can only create ONE account.</span>
+      </div>
+
+      <div id="authError" class="alert alert-danger hidden"></div>
+
+      <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <button type="button" id="tabSignIn" class="btn btn-primary" style="flex:1;" data-i18n="signInTab">Sign In</button>
+        <button type="button" id="tabCreate" class="btn btn-outline" style="flex:1;" data-i18n="createTab">Create Account</button>
+      </div>
+
+      <form id="authForm" novalidate>
+        <div id="signupNameWrap" class="form-group hidden">
+          <label data-i18n="fullName">Full Name</label>
+          <input type="text" id="authName" placeholder="e.g. Abebe Bikila" />
+        </div>
+
+        <div class="form-group">
+          <label data-i18n="emailOrPhone">Email or Ethiopian Phone Number</label>
+          <input type="text" id="authContact" placeholder="e.g. 0911223344, +251911223344, or name@email.com" />
+        </div>
+
+        <div class="form-group">
+          <label data-i18n="password">Password (at least 4 characters)</label>
+          <input type="password" id="authPassword" placeholder="••••••" />
+        </div>
+
+        <button type="submit" class="btn btn-green" style="width:100%;" id="authSubmitBtn" data-i18n="continueBtn">Continue →</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 3. TUTOR PORTAL (STRICTLY ENGLISH ONLY) -->
+  <section id="view-tutor" class="hidden">
+    <div class="card">
+      <h2>Tutor Application Portal</h2>
+      <p class="subtext">Teach, learn, and earn at once — Complete all 4 steps accurately in English.</p>
+
+      <div class="stepper" id="tutorStepper">
+        <div class="step-item active" data-step="1">1. Profile &amp; Preferences</div>
+        <div class="step-item" data-step="2">2. Academic Records</div>
+        <div class="step-item" data-step="3">3. Document Upload</div>
+        <div class="step-item" data-step="4">4. Review PDF &amp; Submit</div>
+      </div>
+
+      <div id="tutorAlert" class="alert alert-danger hidden"></div>
+      <div id="tutorSuccessBanner" class="alert alert-success hidden"></div>
+
+      <!-- Tutor Step 1 -->
+      <div id="tutor-step-1">
+        <div class="instruction-box">
+          <span class="instruction-icon">📝</span>
+          <span>Instruction: Fill in every field accurately. Use an exact 10-digit Ethiopian phone number (09XXXXXXXX or 07XXXXXXXX, or +251 format). Students below Grade 11 cannot apply.</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="tName" placeholder="First and Last Name" />
+          </div>
+          <div class="form-group">
+            <label>Ethiopian Phone Number (Exact 10 digits: 09... or 07...)</label>
+            <input type="tel" id="tPhone" maxlength="13" placeholder="0911223344 or +251911223344" />
+          </div>
+
+          <div class="form-group">
+            <label>Sex</label>
+            <select id="tSex">
+              <option value="">-- Select Sex --</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tutoring Mode Availability</label>
+            <select id="tMode">
+              <option value="Both (In-person & Online)">Both (In-person &amp; Online)</option>
+              <option value="In-person">In-person Only</option>
+              <option value="Online">Online Only</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Education Level</label>
+            <select id="tEdu">
+              <option value="">-- Select Education Level --</option>
+              <option value="below11">Grade 10 or Below (Not Eligible)</option>
+              <option value="hs11">High School Student (Grade 11)</option>
+              <option value="hs12">High School Student (Grade 12)</option>
+              <option value="college">College / University Student</option>
+              <option value="bachelor">Bachelor's Degree / Teacher</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Prior Tutoring Experience</label>
+            <select id="tExperience">
+              <option value="First-time tutor">First-time tutor</option>
+              <option value="Less than 1 year">Less than 1 year</option>
+              <option value="1 - 2 years">1 - 2 years</option>
+              <option value="3+ years">3+ years</option>
+            </select>
+          </div>
+
+          <!-- Dynamic University Name -->
+          <div id="tUniWrap" class="form-group full hidden">
+            <div class="form-grid" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>University / College Name (Required)</label>
+                <input type="text" id="tUniName" placeholder="e.g. Addis Ababa University, AASTU, Jimma University..." />
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label>Department / Field of Study (Optional)</label>
+                <input type="text" id="tMajor" placeholder="e.g. Engineering, Medicine, Economics..." />
+              </div>
+            </div>
+          </div>
+
+          <div id="below11Blocker" class="form-group full hidden">
+            <div class="alert alert-danger" style="margin-bottom:0;">
+              Application Blocked: Students below Grade 11 are not allowed to apply as tutors on ኣስኳላ Tutors.
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label>Preferred Student Grade(s) to Tutor</label>
+            <div class="checkbox-grid" id="tPrefGrades" tabindex="-1"></div>
+          </div>
+
+          <div class="form-group full">
+            <label>Preferred Tutoring Locations (You can select multiple)</label>
+            <div class="checkbox-grid" id="tLocationsChecks" tabindex="-1"></div>
+            <input type="text" id="tCustomLocation" style="margin-top:8px;" placeholder="Other neighborhoods / Online..." />
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Time</label>
+            <input type="text" id="tPrefTime" placeholder="e.g. Weekdays 4:00 PM - 7:00 PM, Weekends" />
+          </div>
+
+          <div class="form-group">
+            <label>Expected Fee Per Hour (ETB)</label>
+            <select id="tFee">
+              <option value="500-600 ETB">500 - 600 ETB</option>
+              <option value="600-700 ETB">600 - 700 ETB</option>
+              <option value="700+ ETB">700+ ETB</option>
+            </select>
+          </div>
+
+          <div class="form-group full">
+            <label>Subjects You Can Teach</label>
+            <div class="checkbox-grid" id="tSubjectsChecks" tabindex="-1"></div>
+            <input type="text" id="tCustomSubject" style="margin-top:8px;" placeholder="Other subjects (optional)..." />
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <span></span>
+          <button type="button" class="btn btn-primary" id="tNext1">Next Step →</button>
+        </div>
+      </div>
+
+      <!-- Tutor Step 2 -->
+      <div id="tutor-step-2" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">🎓</span>
+          <span id="tAcademicRuleNotice"></span>
+        </div>
+
+        <div id="tAcademicFields" class="form-grid"></div>
+
+        <div class="form-group" style="margin-top:16px;" id="tAccuracyWrap" tabindex="-1">
+          <label class="check-chip" style="background:#ffffff; border-color:#22c55e;">
+            <input type="checkbox" id="tAccuracyCheck" />
+            <span>I confirm that all academic scores and information I entered are 100% accurate and real.</span>
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="tPrev2">← Previous</button>
+          <button type="button" class="btn btn-primary" id="tNext2">Next Step →</button>
+        </div>
+      </div>
+
+      <!-- Tutor Step 3 -->
+      <div id="tutor-step-3" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">📎</span>
+          <span id="tUploadInstruction"></span>
+        </div>
+
+        <div id="tUploadFields" class="form-grid"></div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="tPrev3">← Previous</button>
+          <button type="button" class="btn btn-primary" id="tNext3">Review PDF Summary →</button>
+        </div>
+      </div>
+
+      <!-- Tutor Step 4 -->
+      <div id="tutor-step-4" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">📄</span>
+          <span>Instruction: Review your full PDF application below. You may print or save a copy, then click Submit Application.</span>
+        </div>
+
+        <div id="tutorPdfContainer" class="pdf-sheet"></div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="tPrev4">← Edit Application</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" onclick="window.print()">🖨️ Save / Print PDF</button>
+            <button type="button" class="btn btn-green" id="tFinalSubmitBtn">Submit Application ✓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. PARENT PORTAL (Amharic-First + Bilingual Toggle) -->
+  <section id="view-parent" class="hidden">
+    <div class="card">
+      <h2 data-i18n="parentPortalTitle">የወላጅ ማመልከቻ ፖርታል</h2>
+      <p class="subtext" data-i18n="parentPortalSub">ለልጆችዎ ብቁ አስጠኚዎችን ያግኙ • ስለ ልጅዎ የትምህርት ሁኔታ ይንገሩን።</p>
+
+      <div class="stepper" id="parentStepper">
+        <div class="step-item active" data-step="1" data-i18n="pStep1">1. የወላጅ መረጃ</div>
+        <div class="step-item" data-step="2" data-i18n="pStep2">2. የተማሪ መረጃ</div>
+        <div class="step-item" data-step="3" data-i18n="pStep3">3. የአስጠኚ ምርጫ</div>
+        <div class="step-item" data-step="4" data-i18n="pStep4">4. PDF ማየት እና መላክ</div>
+      </div>
+
+      <div id="parentAlert" class="alert alert-danger hidden"></div>
+      <div id="parentSuccessBanner" class="alert alert-success hidden"></div>
+
+      <!-- Parent Step 1 -->
+      <div id="parent-step-1">
+        <div class="instruction-box">
+          <span class="instruction-icon">📝</span>
+          <span data-i18n="pInst1">መመሪያ፡ እባክዎ የወላጅ ስም፣ ትክክለኛ የኢትዮጵያ ስልክ ቁጥር (10 አሃዝ 09... ወይም 07...)፣ አካባቢ እና ክፍያ ይሙሉ።</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label data-i18n="parentName">የወላጅ ሙሉ ስም</label>
+            <input type="text" id="pName" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="phone">የኢትዮጵያ ስልክ ቁጥር (10 አሃዝ)</label>
+            <input type="tel" id="pPhone" maxlength="13" placeholder="0911223344" />
+          </div>
+          <div class="form-group full">
+            <label data-i18n="pLocation">መኖሪያ አካባቢ / ክፍለ ከተማ</label>
+            <input type="text" id="pLocation" data-i18n-placeholder="pLocationPh" placeholder="ለምሳሌ ቦሌ፣ ሲኤምሲ፣ ካዛንቺስ..." />
+          </div>
+          <div class="form-group full">
+            <label data-i18n="pExpectedPay">በሰዓት ለመክፈል ያሰቡት ክፍያ</label>
+            <div class="radio-stack">
+              <label class="radio-card">
+                <input type="radio" name="pPay" value="No more than 500 ETB/hr" checked />
+                <span data-i18n="payOpt1">በሰዓት ከ500 ብር ያልበለጠ</span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="pPay" value="I prioritize efficiency (500-700 ETB/hr)" />
+                <span data-i18n="payOpt2">ብቃትን እመርጣለሁ (በሰዓት 500 - 700 ብር ችግር የለውም)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <span></span>
+          <button type="button" class="btn btn-primary" id="pNext1" data-i18n="nextBtn">ቀጣይ ደረጃ →</button>
+        </div>
+      </div>
+
+      <!-- Parent Step 2 -->
+      <div id="parent-step-2" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">📚</span>
+          <span data-i18n="pInst2">መመሪያ፡ የተማሪውን ክፍል፣ የትምህርት ቤት ዓይነት እና እርዳታ የሚያስፈልጉትን የትምህርት ዓይነቶች ይምረጡ።</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label data-i18n="sGrade">የተማሪው ክፍል</label>
+            <select id="pStudentGrade"></select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="sDays">በሳምንት ስንት ቀን</label>
+            <select id="pDays"></select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="sHours">በቀን ስንት ሰዓት</label>
+            <select id="pHours"></select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="sStatus">ተማሪው በትምህርቶቹ ያለበት ደረጃ</label>
+            <select id="pStatus"></select>
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="schoolType">የትምህርት ቤት ዓይነት</label>
+            <select id="pSchoolType"></select>
+          </div>
+
+          <div class="form-group hidden" id="pCurriculumWrap">
+            <label data-i18n="curriculumType">የግል ትምህርት ቤት ካሪኩለም</label>
+            <select id="pCurriculum"></select>
+          </div>
+
+          <div class="form-group full">
+            <label data-i18n="subjectsHelp">ተማሪው እርዳታ የሚፈልግባቸው የትምህርት ዓይነቶች</label>
+            <div class="checkbox-grid" id="pSubjectsChecks" tabindex="-1"></div>
+            <input type="text" id="pCustomSubject" style="margin-top:8px;" data-i18n-placeholder="otherSubjectPh" placeholder="ሌሎች የትምህርት ዓይነቶች (ካሉ)..." />
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="pPrev2" data-i18n="prevBtn">← ወደ ኋላ</button>
+          <button type="button" class="btn btn-primary" id="pNext2" data-i18n="nextBtn">ቀጣይ ደረጃ →</button>
+        </div>
+      </div>
+
+      <!-- Parent Step 3 -->
+      <div id="parent-step-3" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">👩‍🏫</span>
+          <span data-i18n="pInst3">መመሪያ፡ የሚመርጡትን የአስጠኚ ጾታ እና የማስጠናት ሁኔታ (በአካል ወይም በኦንላይን) ይምረጡ።</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label data-i18n="prefGender">ተመራጭ የአስጠኚ ጾታ</label>
+            <div class="radio-stack">
+              <label class="radio-card">
+                <input type="radio" name="pGender" value="Female" checked />
+                <span data-i18n="female">ሴት</span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="pGender" value="Male" />
+                <span data-i18n="male">ወንድ</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="tutorMode">የማስጠናት ሁኔታ</label>
+            <div class="radio-stack">
+              <label class="radio-card">
+                <input type="radio" name="pMode" value="In-person" checked />
+                <span data-i18n="inPerson">በአካል (ቤት መጥቶ)</span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="pMode" value="Online" />
+                <span data-i18n="online">በኦንላይን (Online)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="pPrev3" data-i18n="prevBtn">← ወደ ኋላ</button>
+          <button type="button" class="btn btn-primary" id="pNext3" data-i18n="reviewPdfBtn">የPDF ማጠቃለያ ይመልከቱ →</button>
+        </div>
+      </div>
+
+      <!-- Parent Step 4: PDF Review & Submit -->
+      <div id="parent-step-4" class="hidden">
+        <div class="instruction-box">
+          <span class="instruction-icon">📄</span>
+          <span data-i18n="pInst4">መመሪያ፡ ያስገቡትን መረጃ በPDF ማጠቃለያው ላይ ያረጋግጡ፣ ከዚያ "ማመልከቻውን አስገባ" የሚለውን ይጫኑ።</span>
+        </div>
+
+        <div id="parentPdfContainer" class="pdf-sheet"></div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" id="pPrev4" data-i18n="prevBtn">← መረጃ አስተካክል</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" onclick="window.print()" data-i18n="downloadPdf">🖨️ PDF አውርድ / አትም</button>
+            <button type="button" class="btn btn-green" id="pFinalSubmitBtn" data-i18n="submitAppBtn">ማመልከቻውን አስገባ ✓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ADMIN ONLY PORTAL -->
+  <section id="view-admin" class="hidden">
+    <div id="adminLockBox" class="card auth-box">
+      <h2>Owner Admin Access</h2>
+      <div class="instruction-box">
+        <span class="instruction-icon">🔒</span>
+        <span>Instruction: Only the ኣስኳላ Tutors owner can unlock this console to set the opening picture, inspect applications, and create matches.</span>
+      </div>
+      <div id="adminLockErr" class="alert alert-danger hidden"></div>
+      <div class="form-group">
+        <label>Admin Passcode</label>
+        <input type="password" id="adminPassInput" placeholder="Enter owner passcode" />
+      </div>
+      <button type="button" class="btn btn-primary" style="width:100%;" id="unlockAdminBtn">Unlock Dashboard</button>
+    </div>
+
+    <div id="adminDashboard" class="hidden">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2>ኣስኳላ Tutors — Owner Matching Console</h2>
+            <p class="subtext" style="margin-bottom:0;">Review verified applications and create parent-tutor matches.</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" id="exportBackupBtn">💾 Download Data Backup</button>
+            <button type="button" class="btn btn-outline" id="exitAdminBtn">Exit Admin</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1-Click Opening Picture Uploader -->
+      <div class="card">
+        <h3 style="margin-bottom:8px; color:var(--green-margin);">🖼️ Set Opening Page Picture (1-Click)</h3>
+        <div class="instruction-box">
+          <span class="instruction-icon">📷</span>
+          <span>Choose your picture from anywhere on your computer. It will immediately appear on the opening page! (For online hosting later, save it as hero.jpg in your folder.)</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <input type="file" id="adminHeroUpload" accept="image/*" style="max-width:340px;" />
+          <button type="button" class="btn btn-outline" id="resetHeroBtn">Reset Picture</button>
+          <span id="heroUploadStatus" style="color:var(--green-text); font-weight:700;"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:12px; color:var(--green-margin);">Create a Match</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Select Parent Request</label>
+            <select id="matchParentSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>Select Verified Tutor</label>
+            <select id="matchTutorSelect"></select>
+          </div>
+        </div>
+        <button type="button" class="btn btn-green" id="createMatchBtn">Confirm Match ✓</button>
+        <div id="matchesList" style="margin-top:20px;"></div>
+      </div>
+
+      <div class="admin-grid">
+        <div class="card">
+          <h3>Submitted Parents (<span id="adminParentCount">0</span>)</h3>
+          <div id="adminParentList" style="margin-top:14px;"></div>
+        </div>
+        <div class="card">
+          <h3>Submitted Tutors (<span id="adminTutorCount">0</span>)</h3>
+          <div id="adminTutorList" style="margin-top:14px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>© 2026 ኣስኳላ Tutors</span>
+  <span class="admin-link" id="openAdminLink">🔒 Owner Access</span>
+</footer>
+
+<script>
+(function() {
+  /* ================= CONFIGURATION ================= */
+  const OWNER_PASSCODE = "askuala2026";
+
+  const SUBJECTS_LIST = [
+    { value: "Mathematics", en: "Mathematics", am: "ሒሳብ (Mathematics)" },
+    { value: "Physics", en: "Physics", am: "ፊዚክስ (Physics)" },
+    { value: "Chemistry", en: "Chemistry", am: "ኬሚስትሪ (Chemistry)" },
+    { value: "Biology", en: "Biology", am: "ባዮሎጂ (Biology)" },
+    { value: "English", en: "English", am: "እንግሊዝኛ (English)" },
+    { value: "Amharic", en: "Amharic", am: "አማርኛ (Amharic)" },
+    { value: "Economics", en: "Economics", am: "ኢኮኖሚክስ (Economics)" },
+    { value: "History", en: "History", am: "ታሪክ (History)" },
+    { value: "Geography", en: "Geography", am: "ጂኦግራፊ (Geography)" },
+    { value: "Citizenship", en: "Citizenship", am: "የዜግነት ትምህርት (Citizenship)" },
+    { value: "Grade 12 Entrance Exam Prep", en: "Grade 12 Entrance Exam Prep", am: "የ12ኛ ክፍል መግቢያ ፈተና ዝግጅት" },
+    { value: "ICT / Coding", en: "ICT / Coding", am: "አይሲቲ / ኮዲንግ (ICT)" },
+    { value: "General Science", en: "General Science", am: "አጠቃላይ ሳይንስ (General Science)" }
+  ];
+
+  const LOCATIONS_LIST = [
+    "Bole", "CMC / Ayat", "Yeka", "Kazanchis", "Piassa", "Lideta", "Sarbet / Old Airport", "Online"
+  ];
+
+  const GRADE_OPTIONS = [
+    { value: "KG / Pre-school", en: "KG / Pre-school", am: "አጸደ ህጻናት (KG)" },
+    { value: "Grade 1", en: "Grade 1", am: "1ኛ ክፍል" },
+    { value: "Grade 2", en: "Grade 2", am: "2ኛ ክፍል" },
+    { value: "Grade 3", en: "Grade 3", am: "3ኛ ክፍል" },
+    { value: "Grade 4", en: "Grade 4", am: "4ኛ ክፍል" },
+    { value: "Grade 5", en: "Grade 5", am: "5ኛ ክፍል" },
+    { value: "Grade 6", en: "Grade 6", am: "6ኛ ክፍል" },
+    { value: "Grade 7", en: "Grade 7", am: "7ኛ ክፍል" },
+    { value: "Grade 8", en: "Grade 8", am: "8ኛ ክፍል" },
+    { value: "Grade 9", en: "Grade 9", am: "9ኛ ክፍል" },
+    { value: "Grade 10", en: "Grade 10", am: "10ኛ ክፍል" },
+    { value: "Grade 11", en: "Grade 11", am: "11ኛ ክፍል" },
+    { value: "Grade 12", en: "Grade 12", am: "12ኛ ክፍል" }
+  ];
+
+  /* ================= STRICT CREDENTIAL & ETHIOPIAN PHONE VALIDATORS ================= */
+  // Exact Ethiopian mobile phone: 09XXXXXXXX (10), 07XXXXXXXX (10), +2519XXXXXXXX (13), +2517XXXXXXXX (13), or 2519XXXXXXXX/2517XXXXXXXX (12)
+  function normalizeEthPhone(raw) {
+    const cleaned = (raw || "").trim().replace(/[\s\-()]/g, "");
+    let m = cleaned.match(/^0([79]\d{8})$/);
+    if (m) return "0" + m[1];
+    m = cleaned.match(/^\+251([79]\d{8})$/);
+    if (m) return "0" + m[1];
+    m = cleaned.match(/^251([79]\d{8})$/);
+    if (m) return "0" + m[1];
+    return null;
+  }
+
+  function isValidEmail(raw) {
+    const cleaned = (raw || "").trim().toLowerCase();
+    // Strict email check: valid local part, @, domain with valid >=2-letter TLD, no consecutive dots
+    if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,10}$/.test(cleaned)) return false;
+    if (cleaned.includes("..")) return false;
+    return true;
+  }
+
+  function validateContactCredential(raw) {
+    const trimmed = (raw || "").trim();
+    if (!trimmed) return { valid: false };
+    if (trimmed.includes("@")) {
+      if (!isValidEmail(trimmed)) return { valid: false, reason: "email" };
+      return { valid: true, type: "email", key: trimmed.toLowerCase(), display: trimmed.toLowerCase() };
+    }
+    const ethPhone = normalizeEthPhone(trimmed);
+    if (!ethPhone) return { valid: false, reason: "phone" };
+    return { valid: true, type: "phone", key: ethPhone, display: ethPhone };
+  }
+
+  function isValidRealName(name) {
+    const trimmed = (name || "").trim();
+    // Must have at least 2 letters and not just digits/symbols
+    return trimmed.length >= 2 && /[A-Za-z\u1200-\u137F]{2,}/.test(trimmed) && !/^\d+$/.test(trimmed);
+  }
+
+  /* ================= HERO IMAGE LOADER ================= */
+  function loadHeroImage() {
+    const img = document.getElementById("heroPhoto");
+    const svg = document.getElementById("heroSvgFallback");
+    let customHero = null;
+    try { customHero = localStorage.getItem("askuala_custom_hero"); } catch {}
+
+    if (customHero) {
+      img.style.display = "block";
+      svg.classList.add("hidden");
+      img.src = customHero;
+      return;
+    }
+
+    const candidates = ["hero.jpg", "hero.png", "hero.jpeg", "hero.webp", "hero.jpg.jpg", "hero.png.png"];
+    let idx = 0;
+    img.onerror = function() {
+      idx++;
+      if (idx < candidates.length) {
+        img.src = candidates[idx];
+      } else {
+        img.style.display = "none";
+        svg.classList.remove("hidden");
+      }
+    };
+    img.style.display = "block";
+    svg.classList.add("hidden");
+    img.src = candidates[0];
+  }
+
+  /* ================= TRANSLATIONS ================= */
+  let currentLang = "en";
+
+  const I18N = {
+    en: {
+      logout: "Sign Out",
+      parentBtnTitle: "Parent / ወላጅ",
+      parentBtnDesc: "Get excellent tutors for your kids • ለልጆችዎ ብቁ አስጠኚዎችን ያግኙ",
+      backHome: "← Back",
+      authInstruction: "Instruction: Enter a valid email or exact Ethiopian phone number (09XXXXXXXX or 07XXXXXXXX). Each email/phone can only create ONE account.",
+      signInTab: "Sign In",
+      createTab: "Create Account",
+      fullName: "Full Name",
+      emailOrPhone: "Email or Ethiopian Phone Number",
+      password: "Password (at least 4 characters)",
+      continueBtn: "Continue →",
+      phone: "Ethiopian Phone Number (10 digits: 09... or 07...)",
+      otherSubjectPh: "Other subjects (optional)...",
+      nextBtn: "Next Step →",
+      prevBtn: "← Previous",
+      reviewPdfBtn: "Review PDF Summary →",
+      downloadPdf: "🖨️ Save / Print PDF",
+      submitAppBtn: "Submit Application ✓",
+      parentPortalTitle: "Parent Application Portal",
+      parentPortalSub: "Get excellent tutors for your kids — Tell us about your child's learning needs.",
+      pStep1: "1. Parent Info",
+      pStep2: "2. Student Info",
+      pStep3: "3. Tutor Preferences",
+      pStep4: "4. Review PDF & Submit",
+      pInst1: "Instruction: Enter your full name, exact 10-digit Ethiopian phone number (09... or 07...), home location, and hourly payment preference.",
+      pInst2: "Instruction: Select your child's grade, school type, schedule, current level, and the subjects they need help with.",
+      pInst3: "Instruction: Choose your preferred tutor gender and whether sessions will be in-person or online.",
+      pInst4: "Instruction: Review your final PDF summary below and click Submit Application.",
+      parentName: "Parent Full Name",
+      pLocation: "Home Location / Sub-city",
+      pLocationPh: "e.g. Bole, CMC, Kazanchis, Old Airport...",
+      pExpectedPay: "Expected Payment Per Hour",
+      payOpt1: "No more than 500 ETB / hour",
+      payOpt2: "I prioritize efficiency (it's okay 500 - 700 ETB / hour)",
+      sGrade: "Student Grade",
+      sDays: "Days Per Week",
+      sHours: "Hours Per Day",
+      sStatus: "Student Status in the Subjects",
+      schoolType: "School Type",
+      curriculumType: "Private School Curriculum",
+      subjectsHelp: "Subjects Student Needs Help With",
+      prefGender: "Preferred Gender of Tutor",
+      female: "Female",
+      male: "Male",
+      tutorMode: "Tutoring Mode",
+      inPerson: "In-person",
+      online: "Online",
+      submittedSuccess: "Your application has been submitted! Only the ኣስኳላ Tutors owner can view it and contact you once matched."
+    },
+    am: {
+      logout: "ውጣ",
+      parentBtnTitle: "ወላጅ (Parent)",
+      parentBtnDesc: "ለልጆችዎ ብቁ አስጠኚዎችን ያግኙ • Get excellent tutors for your kids",
+      backHome: "← ተመለስ",
+      authInstruction: "መመሪያ፡ ትክክለኛ ኢሜይል ወይም ባለ 10 አሃዝ የኢትዮጵያ ስልክ ቁጥር (09XXXXXXXX ወይም 07XXXXXXXX) ያስገቡ። በአንድ ስልክ/ኢሜይል ከ1 በላይ አካውንት መክፈት አይቻልም።",
+      signInTab: "ይግቡ (Sign In)",
+      createTab: "አካውንት ይፍጠሩ",
+      fullName: "ሙሉ ስም",
+      emailOrPhone: "ኢሜይል ወይም የኢትዮጵያ ስልክ ቁጥር",
+      password: "የይለፍ ቃል (ቢያንስ 4 ፊደል/ቁጥር)",
+      continueBtn: "ቀጥል →",
+      phone: "የኢትዮጵያ ስልክ ቁጥር (10 አሃዝ: 09... ወይም 07...)",
+      otherSubjectPh: "ሌሎች የትምህርት ዓይነቶች (ካሉ)...",
+      nextBtn: "ቀጣይ ደረጃ →",
+      prevBtn: "← ወደ ኋላ",
+      reviewPdfBtn: "የPDF ማጠቃለያ ይመልከቱ →",
+      downloadPdf: "🖨️ PDF አውርድ / አትም",
+      submitAppBtn: "ማመልከቻውን አስገባ ✓",
+      parentPortalTitle: "የወላጅ ማመልከቻ ፖርታል",
+      parentPortalSub: "ለልጆችዎ ብቁ አስጠኚዎችን ያግኙ • ስለ ልጅዎ የትምህርት ሁኔታ ይንገሩን።",
+      pStep1: "1. የወላጅ መረጃ",
+      pStep2: "2. የተማሪ መረጃ",
+      pStep3: "3. የአስጠኚ ምርጫ",
+      pStep4: "4. PDF ማየት እና መላክ",
+      pInst1: "መመሪያ፡ እባክዎ የወላጅ ስም፣ ትክክለኛ ባለ 10 አሃዝ የኢትዮጵያ ስልክ ቁጥር (09... ወይም 07...)፣ አካባቢ እና ክፍያ ይሙሉ።",
+      pInst2: "መመሪያ፡ የተማሪውን ክፍል፣ የትምህርት ቤት ዓይነት እና እርዳታ የሚያስፈልጉትን የትምህርት ዓይነቶች ይምረጡ።",
+      pInst3: "መመሪያ፡ የሚመርጡትን የአስጠኚ ጾታ እና የማስጠናት ሁኔታ (በአካል ወይም በኦንላይን) ይምረጡ።",
+      pInst4: "መመሪያ፡ ያስገቡትን መረጃ በPDF ማጠቃለያው ላይ ያረጋግጡ፣ ከዚያ 'ማመልከቻውን አስገባ' የሚለውን ይጫኑ።",
+      parentName: "የወላጅ ሙሉ ስም",
+      pLocation: "መኖሪያ አካባቢ / ክፍለ ከተማ",
+      pLocationPh: "ለምሳሌ ቦሌ፣ ሲኤምሲ፣ ካዛንቺስ...",
+      pExpectedPay: "በሰዓት ለመክፈል ያሰቡት ክፍያ",
+      payOpt1: "በሰዓት ከ500 ብር ያልበለጠ",
+      payOpt2: "ብቃትን እመርጣለሁ (በሰዓት 500 - 700 ብር ችግር የለውም)",
+      sGrade: "የተማሪው ክፍል",
+      sDays: "በሳምንት ስንት ቀን",
+      sHours: "በቀን ስንት ሰዓት",
+      sStatus: "ተማሪው በትምህርቶቹ ያለበት ደረጃ",
+      schoolType: "የትምህርት ቤት ዓይነት",
+      curriculumType: "የግል ትምህርት ቤት ካሪኩለም",
+      subjectsHelp: "ተማሪው እርዳታ የሚፈልግባቸው የትምህርት ዓይነቶች",
+      prefGender: "ተመራጭ የአስጠኚ ጾታ",
+      female: "ሴት",
+      male: "ወንድ",
+      tutorMode: "የማስጠናት ሁኔታ",
+      inPerson: "በአካል (ቤት መጥቶ)",
+      online: "በኦንላይን (Online)",
+      submittedSuccess: "ማመልከቻዎ በተሳካ ሁኔታ ተልኳል! የኣስኳላ Tutors ባለቤት ብቻ አይቶ ተስማሚውን አስጠኚ/ወላጅ ሲያገኝ ያገናኝዎታል።"
+    }
+  };
+
+  function t(key) {
+    return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+  }
+
+  /* ================= SAFE STORAGE ================= */
+  const memoryFallback = {};
+  function dbGet(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "[]"); }
+    catch { return memoryFallback[key] || []; }
+  }
+  function dbSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); }
+    catch { memoryFallback[key] = val; }
+  }
+
+  /* ================= STATE ================= */
+  let activeRoleChoice = null;
+  let authMode = "signin";
+  let currentUser = null;
+  let tutorDocsCache = {};
+  let currentTutorStep = 1;
+  let currentParentStep = 1;
+
+  /* ================= DIRECT MISSING-FIELD HIGHLIGHTER ================= */
+  function clearFieldErrors() {
+    document.querySelectorAll(".field-error").forEach(el => el.classList.remove("field-error"));
+  }
+
+  function directToMissing(targetEl, message, alertId) {
+    clearFieldErrors();
+    const alertBox = document.getElementById(alertId);
+    if (alertBox) {
+      alertBox.textContent = message;
+      alertBox.classList.remove("hidden");
+    }
+    if (targetEl) {
+      targetEl.classList.add("field-error");
+      targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => {
+        if (typeof targetEl.focus === "function") {
+          targetEl.focus({ preventScroll: true });
+        }
+      }, 280);
+    } else if (alertBox) {
+      alertBox.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  document.addEventListener("input", (e) => {
+    if (e.target && e.target.classList) e.target.classList.remove("field-error");
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target) {
+      e.target.classList.remove("field-error");
+      const grid = e.target.closest(".checkbox-grid, #tAccuracyWrap");
+      if (grid) grid.classList.remove("field-error");
+    }
+  });
+
+  /* ================= OPTIONS RENDERING ================= */
+  function initTutorOptionsEnglishOnly() {
+    document.getElementById("tPrefGrades").innerHTML = GRADE_OPTIONS.map(g =>
+      `<label class="check-chip"><input type="checkbox" value="${g.value}" /><span>${g.en}</span></label>`
+    ).join("");
+
+    document.getElementById("tLocationsChecks").innerHTML = LOCATIONS_LIST.map(l =>
+      `<label class="check-chip"><input type="checkbox" value="${l}" /><span>${l}</span></label>`
+    ).join("");
+
+    document.getElementById("tSubjectsChecks").innerHTML = SUBJECTS_LIST.map(s =>
+      `<label class="check-chip"><input type="checkbox" value="${s.value}" /><span>${s.en}</span></label>`
+    ).join("");
+  }
+
+  function renderParentDynamicOptions() {
+    const checkedPSubs = getCheckedValues("pSubjectsChecks");
+    const prevGrade = document.getElementById("pStudentGrade").value;
+    const prevDays = document.getElementById("pDays").value;
+    const prevHours = document.getElementById("pHours").value;
+    const prevStatus = document.getElementById("pStatus").value;
+    const prevSchool = document.getElementById("pSchoolType").value;
+    const prevCurr = document.getElementById("pCurriculum").value;
+
+    document.getElementById("pSubjectsChecks").innerHTML = SUBJECTS_LIST.map(s =>
+      `<label class="check-chip"><input type="checkbox" value="${s.value}" ${checkedPSubs.includes(s.value) ? "checked" : ""} /><span>${s[currentLang]}</span></label>`
+    ).join("");
+
+    document.getElementById("pStudentGrade").innerHTML = GRADE_OPTIONS.map(g =>
+      `<option value="${g.value}">${g[currentLang]}</option>`
+    ).join("");
+    if (prevGrade) document.getElementById("pStudentGrade").value = prevGrade;
+
+    const daysArr = [2, 3, 4, 5, 6, 7];
+    document.getElementById("pDays").innerHTML = daysArr.map(d =>
+      `<option value="${d} days/week">${currentLang === "am" ? `በሳምንት ${d} ቀን` : `${d} days / week`}</option>`
+    ).join("");
+    document.getElementById("pDays").value = prevDays || "3 days/week";
+
+    const hrsArr = [1, 1.5, 2, 2.5, 3];
+    document.getElementById("pHours").innerHTML = hrsArr.map(h =>
+      `<option value="${h} hour(s)/day">${currentLang === "am" ? `በቀን ${h} ሰዓት` : `${h} hour(s) / day`}</option>`
+    ).join("");
+    document.getElementById("pHours").value = prevHours || "2 hour(s)/day";
+
+    document.getElementById("pStatus").innerHTML = `
+      <option value="Basic">${currentLang === "am" ? "መሠረታዊ (Basic)" : "Basic"}</option>
+      <option value="Medium">${currentLang === "am" ? "መካከለኛ (Medium)" : "Medium"}</option>
+      <option value="Advanced">${currentLang === "am" ? "ከፍተኛ (Advanced)" : "Advanced"}</option>
+    `;
+    if (prevStatus) document.getElementById("pStatus").value = prevStatus;
+
+    document.getElementById("pSchoolType").innerHTML = `
+      <option value="Governmental">${currentLang === "am" ? "የመንግስት (Governmental)" : "Governmental"}</option>
+      <option value="Private">${currentLang === "am" ? "የግል (Private)" : "Private"}</option>
+    `;
+    if (prevSchool) document.getElementById("pSchoolType").value = prevSchool;
+
+    document.getElementById("pCurriculum").innerHTML = `
+      <option value="Standard Curriculum">${currentLang === "am" ? "መደበኛ ካሪኩለም (Standard)" : "Standard Curriculum"}</option>
+      <option value="International Curriculum">${currentLang === "am" ? "ኢንተርናሽናል ካሪኩለም (International)" : "International Curriculum"}</option>
+    `;
+    if (prevCurr) document.getElementById("pCurriculum").value = prevCurr;
+  }
+
+  function applyTranslations() {
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+      el.placeholder = t(el.getAttribute("data-i18n-placeholder"));
+    });
+    document.getElementById("langToggleBtn").textContent = currentLang === "en" ? "አማርኛ / AM" : "English / EN";
+    renderParentDynamicOptions();
+    if (activeRoleChoice) updateAuthHeaderText();
+    if (currentParentStep === 4) renderParentPdfPreview();
+  }
+
+  function toggleLang() {
+    if ((currentUser && currentUser.role === "tutor") || activeRoleChoice === "tutor") {
+      currentLang = "en";
+      return;
+    }
+    currentLang = currentLang === "en" ? "am" : "en";
+    applyTranslations();
+  }
+
+  function getCheckedValues(containerId, extraInputId) {
+    const vals = Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(i => i.value);
+    if (extraInputId) {
+      const extra = document.getElementById(extraInputId).value.trim();
+      if (extra) vals.push(extra);
+    }
+    return vals;
+  }
+
+  /* ================= NAVIGATION & AUTH ================= */
+  function showView(viewId) {
+    clearFieldErrors();
+    ["view-landing", "view-auth", "view-tutor", "view-parent", "view-admin"].forEach(id => {
+      document.getElementById(id).classList.add("hidden");
+    });
+    document.getElementById(viewId).classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goHome() {
+    if (currentUser) {
+      showView(currentUser.role === "parent" ? "view-parent" : "view-tutor");
+    } else {
+      activeRoleChoice = null;
+      document.getElementById("langToggleBtn").classList.remove("hidden");
+      showView("view-landing");
+    }
+  }
+
+  function updateAuthHeaderText() {
+    document.getElementById("authHeading").textContent =
+      activeRoleChoice === "parent"
+        ? (currentLang === "am" ? "የወላጅ መግቢያ / አካውንት መክፈቻ" : "Parent Sign In / Create Account")
+        : "Tutor Sign In / Create Account";
+  }
+
+  function selectRole(role) {
+    activeRoleChoice = role;
+    if (role === "tutor") {
+      currentLang = "en";
+      document.getElementById("langToggleBtn").classList.add("hidden");
+    } else {
+      currentLang = "am";
+      document.getElementById("langToggleBtn").classList.remove("hidden");
+    }
+    applyTranslations();
+    setAuthMode("signin");
+    document.getElementById("authError").classList.add("hidden");
+    updateAuthHeaderText();
+    showView("view-auth");
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    document.getElementById("tabSignIn").className = mode === "signin" ? "btn btn-primary" : "btn btn-outline";
+    document.getElementById("tabCreate").className = mode === "signup" ? "btn btn-primary" : "btn btn-outline";
+    document.getElementById("signupNameWrap").classList.toggle("hidden", mode === "signin");
+  }
+
+  function handleAuth(e) {
+    e.preventDefault();
+    document.getElementById("authError").classList.add("hidden");
+    const nameEl = document.getElementById("authName");
+    const contactEl = document.getElementById("authContact");
+    const passEl = document.getElementById("authPassword");
+
+    const name = nameEl.value.trim();
+    const password = passEl.value;
+    const parsedContact = validateContactCredential(contactEl.value);
+
+    if (authMode === "signup" && !isValidRealName(name)) {
+      return directToMissing(nameEl, currentLang === "am" ? "እባክዎ ትክክለኛ ሙሉ ስምዎን እዚህ ይጻፉ።" : "Invalid Name: Please enter your real Full Name (letters required).", "authError");
+    }
+
+    if (!parsedContact.valid) {
+      const msgAm = "የተሳሳተ መረጃ፡ እባክዎ ትክክለኛ ኢሜይል (name@gmail.com) ወይም ትክክለኛ ባለ 10 አሃዝ የኢትዮጵያ ስልክ ቁጥር (09XXXXXXXX ወይም 07XXXXXXXX) ብቻ ያስገቡ።";
+      const msgEn = "Invalid Credential: Enter a valid Email (e.g. name@gmail.com) OR an exact Ethiopian mobile number (10 digits starting with 09 or 07, or +2519/+2517 followed by 8 digits).";
+      return directToMissing(contactEl, currentLang === "am" ? msgAm : msgEn, "authError");
+    }
+
+    if (!password || password.trim().length < 4) {
+      return directToMissing(passEl, currentLang === "am" ? "እባክዎ ቢያንስ 4 ፊደል/ቁጥር ያለው የይለፍ ቃል ያስገቡ።" : "Invalid Password: Password must be at least 4 characters.", "authError");
+    }
+
+    const users = dbGet("askuala_users");
+
+    if (authMode === "signup") {
+      // BLOCK creating ANY second account with the same email OR normalized Ethiopian phone number
+      const duplicate = users.find(u => u.contact === parsedContact.key);
+      if (duplicate) {
+        const dupMsgAm = "ይህ ኢሜይል ወይም ስልክ ቁጥር ቀድሞ ተመዝግቧል! በተመሳሳይ ኢሜይል ወይም ስልክ ሁለተኛ አካውንት መክፈት አይቻልም።";
+        const dupMsgEn = "Blocked: An account with this exact email or Ethiopian phone number already exists. Creating a second account with the same email or phone is not allowed.";
+        return directToMissing(contactEl, currentLang === "am" ? dupMsgAm : dupMsgEn, "authError");
+      }
+
+      const newUser = {
+        id: "U_" + Date.now(),
+        role: activeRoleChoice,
+        contact: parsedContact.key,
+        contactType: parsedContact.type,
+        password,
+        name
+      };
+      users.push(newUser);
+      dbSet("askuala_users", users);
+      loginSuccess(newUser);
+    } else {
+      // Sign In: Account MUST exist AND match role & password
+      const foundAccount = users.find(u => u.contact === parsedContact.key);
+      if (!foundAccount) {
+        const notExistAm = "ይህ አካውንት የለም! እባክዎ መጀመሪያ 'አካውንት ይፍጠሩ (Create Account)' የሚለውን ተጭነው ይመዝገቡ።";
+        const notExistEn = "Blocked: This account does not exist. Please click 'Create Account' first to register valid credentials.";
+        return directToMissing(contactEl, currentLang === "am" ? notExistAm : notExistEn, "authError");
+      }
+      if (foundAccount.role !== activeRoleChoice) {
+        const wrongRoleAm = "የተሳሳተ መግቢያ፡ ይህ ስልክ/ኢሜይል የተመዘገበው ለሌላው ክፍል ነው።";
+        const wrongRoleEn = `Access Blocked: This credential is registered under the ${foundAccount.role.toUpperCase()} portal, not this portal.`;
+        return directToMissing(contactEl, currentLang === "am" ? wrongRoleAm : wrongRoleEn, "authError");
+      }
+      if (foundAccount.password !== password) {
+        return directToMissing(passEl, currentLang === "am" ? "የተሳሳተ የይለፍ ቃል! እባክዎ ትክክለኛውን የይለፍ ቃል ያስገቡ።" : "Blocked: Incorrect password for this account.", "authError");
+      }
+      loginSuccess(foundAccount);
+    }
+  }
+
+  function loginSuccess(user) {
+    currentUser = user;
+    document.getElementById("userBadge").textContent = `${user.name || user.contact}`;
+    document.getElementById("userBadge").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.remove("hidden");
+
+    if (user.role === "tutor") {
+      currentLang = "en";
+      document.getElementById("langToggleBtn").classList.add("hidden");
+      applyTranslations();
+      if (user.name) document.getElementById("tName").value = user.name;
+      if (user.contactType === "phone") document.getElementById("tPhone").value = user.contact;
+      tutorGoStep(1);
+      showView("view-tutor");
+    } else {
+      currentLang = "am";
+      document.getElementById("langToggleBtn").classList.remove("hidden");
+      applyTranslations();
+      if (user.name) document.getElementById("pName").value = user.name;
+      if (user.contactType === "phone") document.getElementById("pPhone").value = user.contact;
+      parentGoStep(1);
+      showView("view-parent");
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    activeRoleChoice = null;
+    currentLang = "en";
+    document.getElementById("userBadge").classList.add("hidden");
+    document.getElementById("logoutBtn").classList.add("hidden");
+    document.getElementById("langToggleBtn").classList.remove("hidden");
+    applyTranslations();
+    showView("view-landing");
+  }
+
+  function setStepper(stepperId, activeStep) {
+    document.querySelectorAll(`#${stepperId} .step-item`).forEach(el => {
+      const s = Number(el.dataset.step);
+      el.classList.remove("active", "done");
+      if (s < activeStep) el.classList.add("done");
+      else if (s === activeStep) el.classList.add("active");
+    });
+  }
+
+  /* ================= TUTOR PORTAL (100% ENGLISH) ================= */
+  function handleTutorEduChange() {
+    const edu = document.getElementById("tEdu").value;
+    const isBelow11 = (edu === "below11");
+    const needsUni = (edu === "college" || edu === "bachelor");
+
+    document.getElementById("below11Blocker").classList.toggle("hidden", !isBelow11);
+    document.getElementById("tUniWrap").classList.toggle("hidden", !needsUni);
+    document.getElementById("tNext1").disabled = isBelow11;
+
+    renderTutorAcademicFields();
+    renderTutorUploadFields();
+  }
+
+  function renderTutorAcademicFields() {
+    const edu = document.getElementById("tEdu").value;
+    const notice = document.getElementById("tAcademicRuleNotice");
+    const box = document.getElementById("tAcademicFields");
+    const prevVals = {};
+    box.querySelectorAll("input").forEach(inp => prevVals[inp.id] = inp.value);
+
+    if (edu === "hs11" || edu === "hs12") {
+      notice.textContent = "Instruction: High school applicants must have a valid average (90 to 100) in EACH grade (9+).";
+      let html = `
+        <div class="form-group"><label>Grade 9 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG9" /></div>
+        <div class="form-group"><label>Grade 10 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG10" /></div>`;
+      if (edu === "hs12") {
+        html += `<div class="form-group"><label>Grade 11 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG11" /></div>`;
+      }
+      box.innerHTML = html;
+    } else if (edu === "college") {
+      notice.textContent = "Instruction: College students must have an average between 85 and 100 in EACH high school grade (9-12) AND an Entrance Result between 450 and 700.";
+      box.innerHTML = `
+        <div class="form-group"><label>Grade 9 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG9" /></div>
+        <div class="form-group"><label>Grade 10 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG10" /></div>
+        <div class="form-group"><label>Grade 11 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG11" /></div>
+        <div class="form-group"><label>Grade 12 Transcript Average (0-100)</label><input type="number" step="0.01" min="0" max="100" id="tG12" /></div>
+        <div class="form-group"><label>National Entrance Exam Result (0-700)</label><input type="number" min="0" max="700" id="tEntrance" /></div>
+        <div class="form-group"><label>Recent Semester GPA (Optional, 0.00-4.00)</label><input type="number" step="0.01" min="0" max="4" id="tSemGpa" placeholder="e.g. 3.75" /></div>`;
+    } else if (edu === "bachelor") {
+      notice.textContent = "Instruction: Enter your valid National Entrance Result (0-700) and Graduating CGPA (0.00-4.00).";
+      box.innerHTML = `
+        <div class="form-group"><label>National Entrance Exam Result (0-700)</label><input type="number" min="0" max="700" id="tEntrance" /></div>
+        <div class="form-group"><label>Graduating CGPA (0.00 - 4.00)</label><input type="number" step="0.01" min="0" max="4" id="tCgpa" /></div>`;
+    } else {
+      box.innerHTML = "";
+    }
+
+    Object.entries(prevVals).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined) el.value = val;
+    });
+  }
+
+  function renderTutorUploadFields() {
+    const edu = document.getElementById("tEdu").value;
+    const inst = document.getElementById("tUploadInstruction");
+    const box = document.getElementById("tUploadFields");
+    tutorDocsCache = {};
+
+    const idUploadHtml = `
+      <div class="form-group full">
+        <label>School / University / National ID (Optional — Recommended for Faster Verification)</label>
+        <input type="file" id="docIdCard" accept=".pdf,image/*" />
+      </div>`;
+
+    if (edu === "hs11" || edu === "hs12") {
+      inst.textContent = "Instruction: Upload your Grade 9+ transcripts (PDF or clear photo).";
+      box.innerHTML = `
+        <div class="form-group full">
+          <label>Grade 9+ Transcripts (Required)</label>
+          <input type="file" id="docTranscripts" multiple accept=".pdf,image/*" />
+        </div>` + idUploadHtml;
+      document.getElementById("docTranscripts").addEventListener("change", function() { cacheFiles(this, "Transcripts"); });
+      document.getElementById("docIdCard").addEventListener("change", function() { cacheFiles(this, "ID_Card"); });
+    } else if (edu === "college") {
+      inst.textContent = "Instruction: Upload BOTH your Grade 9+ transcripts AND your Entrance Result.";
+      box.innerHTML = `
+        <div class="form-group">
+          <label>Grade 9+ Transcripts (Required)</label>
+          <input type="file" id="docTranscripts" multiple accept=".pdf,image/*" />
+        </div>
+        <div class="form-group">
+          <label>Entrance Exam Result (Required)</label>
+          <input type="file" id="docEntrance" accept=".pdf,image/*" />
+        </div>` + idUploadHtml;
+      document.getElementById("docTranscripts").addEventListener("change", function() { cacheFiles(this, "Transcripts"); });
+      document.getElementById("docEntrance").addEventListener("change", function() { cacheFiles(this, "EntranceResult"); });
+      document.getElementById("docIdCard").addEventListener("change", function() { cacheFiles(this, "ID_Card"); });
+    } else if (edu === "bachelor") {
+      inst.textContent = "Instruction: Upload BOTH your Entrance Result AND Graduating CGPA / Degree document.";
+      box.innerHTML = `
+        <div class="form-group">
+          <label>Entrance Exam Result (Required)</label>
+          <input type="file" id="docEntrance" accept=".pdf,image/*" />
+        </div>
+        <div class="form-group">
+          <label>Graduating CGPA / Degree Certificate (Required)</label>
+          <input type="file" id="docCgpa" accept=".pdf,image/*" />
+        </div>` + idUploadHtml;
+      document.getElementById("docEntrance").addEventListener("change", function() { cacheFiles(this, "EntranceResult"); });
+      document.getElementById("docCgpa").addEventListener("change", function() { cacheFiles(this, "GraduatingCGPA"); });
+      document.getElementById("docIdCard").addEventListener("change", function() { cacheFiles(this, "ID_Card"); });
+    }
+  }
+
+  function cacheFiles(inputEl, label) {
+    const validFiles = Array.from(inputEl.files).filter(f => f.size > 0);
+    tutorDocsCache[label] = validFiles.map(f => `${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`);
+  }
+
+  function validateTutorStep1() {
+    const tName = document.getElementById("tName");
+    const tPhone = document.getElementById("tPhone");
+    const tSex = document.getElementById("tSex");
+    const tEdu = document.getElementById("tEdu");
+    const tUniName = document.getElementById("tUniName");
+    const tPrefGrades = document.getElementById("tPrefGrades");
+    const tLocs = document.getElementById("tLocationsChecks");
+    const tPrefTime = document.getElementById("tPrefTime");
+    const tSubs = document.getElementById("tSubjectsChecks");
+
+    if (!isValidRealName(tName.value)) {
+      return directToMissing(tName, "Invalid or Missing Name: Please enter your real Full Name.", "tutorAlert"), false;
+    }
+
+    const normPhone = normalizeEthPhone(tPhone.value);
+    if (!normPhone) {
+      return directToMissing(tPhone, "Invalid Ethiopian Phone: Enter an exact Ethiopian mobile number (10 digits starting with 09 or 07, e.g. 0911223344, or +2519/+2517 + 8 digits).", "tutorAlert"), false;
+    }
+    tPhone.value = normPhone;
+
+    // Check duplicate submitted phone across existing applications
+    const dupPhone = dbGet("askuala_tutor_apps").find(a => a.phone === normPhone) || dbGet("askuala_parent_apps").find(a => a.phone === normPhone);
+    if (dupPhone) {
+      return directToMissing(tPhone, "Blocked: This Ethiopian phone number has already been used in another submitted application.", "tutorAlert"), false;
+    }
+
+    if (!tSex.value) {
+      return directToMissing(tSex, "Missing Field: Please select your Sex (Female or Male).", "tutorAlert"), false;
+    }
+    if (!tEdu.value) {
+      return directToMissing(tEdu, "Missing Field: Please select your Education Level.", "tutorAlert"), false;
+    }
+    if (tEdu.value === "below11") {
+      return directToMissing(tEdu, "Application Blocked: Students below Grade 11 are not allowed to apply as tutors.", "tutorAlert"), false;
+    }
+    if ((tEdu.value === "college" || tEdu.value === "bachelor") && !isValidRealName(tUniName.value)) {
+      return directToMissing(tUniName, "Missing or Invalid Field: Please enter a valid University / College Name.", "tutorAlert"), false;
+    }
+    if (getCheckedValues("tPrefGrades").length === 0) {
+      return directToMissing(tPrefGrades, "Missing Selection: Please choose at least one Preferred Student Grade.", "tutorAlert"), false;
+    }
+    if (getCheckedValues("tLocationsChecks", "tCustomLocation").length === 0) {
+      return directToMissing(tLocs, "Missing Selection: Please select or type at least one Tutoring Location.", "tutorAlert"), false;
+    }
+    if (!tPrefTime.value.trim()) {
+      return directToMissing(tPrefTime, "Missing Field: Please enter your Preferred Time.", "tutorAlert"), false;
+    }
+    if (getCheckedValues("tSubjectsChecks", "tCustomSubject").length === 0) {
+      return directToMissing(tSubs, "Missing Selection: Please select at least one Subject you can teach.", "tutorAlert"), false;
+    }
+    return true;
+  }
+
+  function tutorGoStep(step) {
+    document.getElementById("tutorAlert").classList.add("hidden");
+    clearFieldErrors();
+
+    if (step === 2 && !validateTutorStep1()) return;
+
+    currentTutorStep = step;
+    [1, 2, 3, 4].forEach(n => document.getElementById(`tutor-step-${n}`).classList.add("hidden"));
+    document.getElementById(`tutor-step-${step}`).classList.remove("hidden");
+    setStepper("tutorStepper", step);
+    if (step === 4) renderTutorPdfPreview();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function validateAndProceedTutorStep2() {
+    document.getElementById("tutorAlert").classList.add("hidden");
+    const edu = document.getElementById("tEdu").value;
+    const hsBlockMsg = "Eligibility Blocked: High school applicants must have an average between 90 and 100 in EVERY high school grade (9+).";
+    const colBlockMsg = "Eligibility Blocked: College applicants must have an average between 85 and 100 in EVERY high school grade AND an Entrance score between 450 and 700.";
+
+    if (edu === "hs11" || edu === "hs12") {
+      const fields = edu === "hs12" ? ["tG9", "tG10", "tG11"] : ["tG9", "tG10"];
+      for (const id of fields) {
+        const el = document.getElementById(id);
+        const val = parseFloat(el.value);
+        if (el.value.trim() === "" || isNaN(val)) {
+          return directToMissing(el, `Missing Field: Please enter your ${el.previousElementSibling.textContent}.`, "tutorAlert");
+        }
+        if (val < 0 || val > 100) {
+          return directToMissing(el, "Invalid Score: Transcript average must be between 0 and 100.", "tutorAlert");
+        }
+        if (val < 90) {
+          return directToMissing(el, hsBlockMsg, "tutorAlert");
+        }
+      }
+    } else if (edu === "college") {
+      for (const id of ["tG9", "tG10", "tG11", "tG12"]) {
+        const el = document.getElementById(id);
+        const val = parseFloat(el.value);
+        if (el.value.trim() === "" || isNaN(val)) {
+          return directToMissing(el, `Missing Field: Please enter your ${el.previousElementSibling.textContent}.`, "tutorAlert");
+        }
+        if (val < 0 || val > 100) {
+          return directToMissing(el, "Invalid Score: Transcript average must be between 0 and 100.", "tutorAlert");
+        }
+        if (val < 85) {
+          return directToMissing(el, colBlockMsg, "tutorAlert");
+        }
+      }
+      const entEl = document.getElementById("tEntrance");
+      const entVal = parseFloat(entEl.value);
+      if (entEl.value.trim() === "" || isNaN(entVal)) {
+        return directToMissing(entEl, "Missing Field: Please enter your National Entrance Exam Result.", "tutorAlert");
+      }
+      if (entVal < 0 || entVal > 700) {
+        return directToMissing(entEl, "Invalid Score: Entrance Exam score must be between 0 and 700.", "tutorAlert");
+      }
+      if (entVal < 450) {
+        return directToMissing(entEl, colBlockMsg, "tutorAlert");
+      }
+      const gpaEl = document.getElementById("tSemGpa");
+      if (gpaEl.value.trim() !== "") {
+        const gVal = parseFloat(gpaEl.value);
+        if (isNaN(gVal) || gVal < 0 || gVal > 4) {
+          return directToMissing(gpaEl, "Invalid GPA: Semester GPA must be between 0.00 and 4.00.", "tutorAlert");
+        }
+      }
+    } else if (edu === "bachelor") {
+      const entEl = document.getElementById("tEntrance");
+      const cgpaEl = document.getElementById("tCgpa");
+      const entVal = parseFloat(entEl.value);
+      const cgpaVal = parseFloat(cgpaEl.value);
+      if (entEl.value.trim() === "" || isNaN(entVal)) {
+        return directToMissing(entEl, "Missing Field: Please enter your National Entrance Exam Result.", "tutorAlert");
+      }
+      if (entVal < 0 || entVal > 700) {
+        return directToMissing(entEl, "Invalid Score: Entrance Exam score must be between 0 and 700.", "tutorAlert");
+      }
+      if (cgpaEl.value.trim() === "" || isNaN(cgpaVal)) {
+        return directToMissing(cgpaEl, "Missing Field: Please enter your Graduating CGPA.", "tutorAlert");
+      }
+      if (cgpaVal < 0 || cgpaVal > 4) {
+        return directToMissing(cgpaEl, "Invalid CGPA: Graduating CGPA must be between 0.00 and 4.00.", "tutorAlert");
+      }
+    }
+
+    if (!document.getElementById("tAccuracyCheck").checked) {
+      return directToMissing(document.getElementById("tAccuracyWrap"), "Missing Confirmation: Please check the accuracy confirmation box.", "tutorAlert");
+    }
+    tutorGoStep(3);
+  }
+
+  function validateAndProceedTutorStep3() {
+    document.getElementById("tutorAlert").classList.add("hidden");
+    const edu = document.getElementById("tEdu").value;
+    if ((edu === "hs11" || edu === "hs12") && (!tutorDocsCache.Transcripts || !tutorDocsCache.Transcripts.length)) {
+      return directToMissing(document.getElementById("docTranscripts"), "Missing Document: Please upload your Grade 9+ Transcripts here.", "tutorAlert");
+    }
+    if (edu === "college") {
+      if (!tutorDocsCache.Transcripts || !tutorDocsCache.Transcripts.length) {
+        return directToMissing(document.getElementById("docTranscripts"), "Missing Document: Please upload your Grade 9+ Transcripts here.", "tutorAlert");
+      }
+      if (!tutorDocsCache.EntranceResult || !tutorDocsCache.EntranceResult.length) {
+        return directToMissing(document.getElementById("docEntrance"), "Missing Document: Please upload your Entrance Exam Result here.", "tutorAlert");
+      }
+    }
+    if (edu === "bachelor") {
+      if (!tutorDocsCache.EntranceResult || !tutorDocsCache.EntranceResult.length) {
+        return directToMissing(document.getElementById("docEntrance"), "Missing Document: Please upload your Entrance Exam Result here.", "tutorAlert");
+      }
+      if (!tutorDocsCache.GraduatingCGPA || !tutorDocsCache.GraduatingCGPA.length) {
+        return directToMissing(document.getElementById("docCgpa"), "Missing Document: Please upload your Graduating CGPA / Degree document here.", "tutorAlert");
+      }
+    }
+    tutorGoStep(4);
+  }
+
+  function collectTutorData() {
+    const edu = document.getElementById("tEdu").value;
+    const needsUni = (edu === "college" || edu === "bachelor");
+    const academics = {};
+    if (edu === "hs11" || edu === "hs12") {
+      academics.grade9 = document.getElementById("tG9")?.value || "";
+      academics.grade10 = document.getElementById("tG10")?.value || "";
+      if (edu === "hs12") academics.grade11 = document.getElementById("tG11")?.value || "";
+    } else if (edu === "college") {
+      academics.grade9 = document.getElementById("tG9")?.value || "";
+      academics.grade10 = document.getElementById("tG10")?.value || "";
+      academics.grade11 = document.getElementById("tG11")?.value || "";
+      academics.grade12 = document.getElementById("tG12")?.value || "";
+      academics.entrance = document.getElementById("tEntrance")?.value || "";
+      academics.semesterGpa = document.getElementById("tSemGpa")?.value || "N/A";
+    } else if (edu === "bachelor") {
+      academics.entrance = document.getElementById("tEntrance")?.value || "";
+      academics.cgpa = document.getElementById("tCgpa")?.value || "";
+    }
+
+    const eduLabels = {
+      hs11: "High School (Grade 11)",
+      hs12: "High School (Grade 12)",
+      college: "College Student",
+      bachelor: "Bachelor's Degree / Teacher"
+    };
+
+    return {
+      id: "TUT_" + Date.now(),
+      userContact: currentUser ? currentUser.contact : "",
+      name: document.getElementById("tName").value.trim(),
+      phone: normalizeEthPhone(document.getElementById("tPhone").value) || document.getElementById("tPhone").value.trim(),
+      sex: document.getElementById("tSex").value,
+      mode: document.getElementById("tMode").value,
+      experience: document.getElementById("tExperience").value,
+      eduCode: edu,
+      education: eduLabels[edu] || edu,
+      universityName: needsUni ? document.getElementById("tUniName").value.trim() : "N/A (High School)",
+      major: needsUni ? (document.getElementById("tMajor").value.trim() || "N/A") : "N/A",
+      preferredGrades: getCheckedValues("tPrefGrades"),
+      locations: getCheckedValues("tLocationsChecks", "tCustomLocation"),
+      preferredTime: document.getElementById("tPrefTime").value.trim(),
+      subjects: getCheckedValues("tSubjectsChecks", "tCustomSubject"),
+      expectedFee: document.getElementById("tFee").value,
+      academics,
+      documents: tutorDocsCache,
+      submittedAt: new Date().toLocaleString()
+    };
+  }
+
+  function renderTutorPdfPreview() {
+    const d = collectTutorData();
+    const acadRows = Object.entries(d.academics).map(([k, v]) =>
+      `<tr><td>${k.toUpperCase()}</td><td>${v}</td></tr>`
+    ).join("");
+    const docRows = Object.entries(d.documents).map(([k, v]) =>
+      `<tr><td>${k}</td><td>${v.join(", ")}</td></tr>`
+    ).join("");
+
+    const uniRows = (d.eduCode === "college" || d.eduCode === "bachelor")
+      ? `<tr><td>University / College</td><td>${d.universityName}</td></tr>
+         <tr><td>Department / Major</td><td>${d.major}</td></tr>`
+      : "";
+
+    document.getElementById("tutorPdfContainer").innerHTML = `
+      <div class="pdf-header">
+        <div>
+          <h2 style="margin:0;">ኣስኳላ Tutors — Tutor Application PDF</h2>
+          <small style="color:#475569;">Official Application Summary</small>
+        </div>
+        <div style="text-align:right; font-size:0.85rem; color:#475569;">
+          <div><strong>ID:</strong> ${d.id}</div>
+          <div><strong>Date:</strong> ${d.submittedAt}</div>
+        </div>
+      </div>
+      <div class="pdf-section-title">Personal &amp; Tutoring Profile</div>
+      <table class="pdf-table">
+        <tr><td>Full Name</td><td>${d.name}</td></tr>
+        <tr><td>Sex</td><td>${d.sex}</td></tr>
+        <tr><td>Phone / Contact</td><td>${d.phone} (${d.userContact})</td></tr>
+        <tr><td>Education Level</td><td>${d.education}</td></tr>
+        ${uniRows}
+        <tr><td>Tutoring Experience</td><td>${d.experience}</td></tr>
+        <tr><td>Mode Availability</td><td>${d.mode}</td></tr>
+        <tr><td>Preferred Student Grades</td><td>${d.preferredGrades.join(", ")}</td></tr>
+        <tr><td>Locations</td><td>${d.locations.join(", ")}</td></tr>
+        <tr><td>Preferred Time</td><td>${d.preferredTime}</td></tr>
+        <tr><td>Subjects</td><td>${d.subjects.join(", ")}</td></tr>
+        <tr><td>Expected Fee / Hour</td><td>${d.expectedFee}</td></tr>
+      </table>
+      <div class="pdf-section-title">Academic Transcripts &amp; Scores</div>
+      <table class="pdf-table">${acadRows}</table>
+      <div class="pdf-section-title">Uploaded Documents</div>
+      <table class="pdf-table">${docRows}</table>
+    `;
+  }
+
+  function submitTutorApp() {
+    const data = collectTutorData();
+    const apps = dbGet("askuala_tutor_apps");
+    apps.push(data);
+    dbSet("askuala_tutor_apps", apps);
+    document.getElementById("tFinalSubmitBtn").disabled = true;
+    const banner = document.getElementById("tutorSuccessBanner");
+    banner.textContent = "Your tutor application has been submitted! Only the ኣስኳላ Tutors owner can review it and contact you once matched.";
+    banner.classList.remove("hidden");
+    banner.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ================= PARENT PORTAL ================= */
+  function togglePrivateCurriculum() {
+    const isPriv = document.getElementById("pSchoolType").value === "Private";
+    document.getElementById("pCurriculumWrap").classList.toggle("hidden", !isPriv);
+  }
+
+  function parentGoStep(step) {
+    document.getElementById("parentAlert").classList.add("hidden");
+    clearFieldErrors();
+
+    if (step === 2) {
+      const pName = document.getElementById("pName");
+      const pPhone = document.getElementById("pPhone");
+      const pLoc = document.getElementById("pLocation");
+      if (!isValidRealName(pName.value)) {
+        return directToMissing(pName, currentLang === "am" ? "ያልተሞላ ቦታ፡ እባክዎ ትክክለኛ የወላጅ ሙሉ ስም እዚህ ይጻፉ።" : "Missing or Invalid Name: Please enter Parent Full Name.", "parentAlert");
+      }
+      const normPhone = normalizeEthPhone(pPhone.value);
+      if (!normPhone) {
+        return directToMissing(pPhone, currentLang === "am" ? "የተሳሳተ ስልክ፡ እባክዎ ትክክለኛ ባለ 10 አሃዝ የኢትዮጵያ ስልክ ቁጥር ብቻ ያስገቡ (09XXXXXXXX ወይም 07XXXXXXXX)።" : "Invalid Ethiopian Phone: Must be an exact 10-digit number starting with 09 or 07 (or +251 format).", "parentAlert");
+      }
+      pPhone.value = normPhone;
+
+      const dupPhone = dbGet("askuala_parent_apps").find(a => a.phone === normPhone) || dbGet("askuala_tutor_apps").find(a => a.phone === normPhone);
+      if (dupPhone) {
+        return directToMissing(pPhone, currentLang === "am" ? "ተከልክሏል፡ ይህ የኢትዮጵያ ስልክ ቁጥር ቀድሞ በሌላ ማመልከቻ ላይ ተመዝግቧል።" : "Blocked: This Ethiopian phone number has already been used in another submitted application.", "parentAlert");
+      }
+
+      if (!pLoc.value.trim()) {
+        return directToMissing(pLoc, currentLang === "am" ? "ያልተሞላ ቦታ፡ እባክዎ መኖሪያ አካባቢዎን እዚህ ይጻፉ።" : "Missing Field: Please enter your Home Location.", "parentAlert");
+      }
+    }
+
+    if (step === 3) {
+      const pSubs = document.getElementById("pSubjectsChecks");
+      if (getCheckedValues("pSubjectsChecks", "pCustomSubject").length === 0) {
+        return directToMissing(pSubs, currentLang === "am" ? "ያልተመረጠ ቦታ፡ እባክዎ ተማሪው እርዳታ የሚፈልግባቸውን ትምህርቶች ይምረጡ።" : "Missing Selection: Please select at least one Subject your child needs help with.", "parentAlert");
+      }
+    }
+
+    currentParentStep = step;
+    [1, 2, 3, 4].forEach(n => document.getElementById(`parent-step-${n}`).classList.add("hidden"));
+    document.getElementById(`parent-step-${step}`).classList.remove("hidden");
+    setStepper("parentStepper", step);
+    if (step === 4) renderParentPdfPreview();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function collectParentData() {
+    const schoolType = document.getElementById("pSchoolType").value;
+    const curriculum = schoolType === "Private" ? document.getElementById("pCurriculum").value : "N/A";
+    return {
+      id: "PAR_" + Date.now(),
+      userContact: currentUser ? currentUser.contact : "",
+      name: document.getElementById("pName").value.trim(),
+      phone: normalizeEthPhone(document.getElementById("pPhone").value) || document.getElementById("pPhone").value.trim(),
+      location: document.getElementById("pLocation").value.trim(),
+      expectedPayment: document.querySelector("input[name='pPay']:checked").value,
+      studentGrade: document.getElementById("pStudentGrade").value,
+      subjects: getCheckedValues("pSubjectsChecks", "pCustomSubject"),
+      daysPerWeek: document.getElementById("pDays").value,
+      hoursPerDay: document.getElementById("pHours").value,
+      schoolType,
+      curriculum,
+      studentStatus: document.getElementById("pStatus").value,
+      preferredGender: document.querySelector("input[name='pGender']:checked").value,
+      mode: document.querySelector("input[name='pMode']:checked").value,
+      submittedAt: new Date().toLocaleString()
+    };
+  }
+
+  function renderParentPdfPreview() {
+    const d = collectParentData();
+    const isAm = (currentLang === "am");
+
+    const payLabel = d.expectedPayment.includes("500-700")
+      ? (isAm ? "ብቃትን እመርጣለሁ (500 - 700 ብር/ሰዓት)" : d.expectedPayment)
+      : (isAm ? "ከ500 ብር ያልበለጠ/ሰዓት" : d.expectedPayment);
+
+    const genderLabel = isAm ? (d.preferredGender === "Female" ? "ሴት" : "ወንድ") : d.preferredGender;
+    const modeLabel = isAm ? (d.mode === "Online" ? "በኦንላይን" : "በአካል") : d.mode;
+
+    document.getElementById("parentPdfContainer").innerHTML = `
+      <div class="pdf-header">
+        <div>
+          <h2 style="margin:0;">${isAm ? "ኣስኳላ Tutors — የወላጅ ማመልከቻ PDF" : "ኣስኳላ Tutors — Parent Application PDF"}</h2>
+          <small style="color:#475569;">${isAm ? "የማመልከቻ ማጠቃለያ" : "Official Application Summary"}</small>
+        </div>
+        <div style="text-align:right; font-size:0.85rem; color:#475569;">
+          <div><strong>ID:</strong> ${d.id}</div>
+          <div><strong>${isAm ? "ቀን" : "Date"}:</strong> ${d.submittedAt}</div>
+        </div>
+      </div>
+
+      <div class="pdf-section-title">${isAm ? "የወላጅ መረጃ" : "Parent Information"}</div>
+      <table class="pdf-table">
+        <tr><td>${isAm ? "የወላጅ ስም" : "Parent Name"}</td><td>${d.name}</td></tr>
+        <tr><td>${isAm ? "ስልክ ቁጥር" : "Phone / Contact"}</td><td>${d.phone} (${d.userContact})</td></tr>
+        <tr><td>${isAm ? "አካባቢ" : "Location"}</td><td>${d.location}</td></tr>
+        <tr><td>${isAm ? "በሰዓት ክፍያ" : "Expected Payment / Hour"}</td><td>${payLabel}</td></tr>
+      </table>
+
+      <div class="pdf-section-title">${isAm ? "የተማሪ መረጃ" : "Student Information"}</div>
+      <table class="pdf-table">
+        <tr><td>${isAm ? "የተማሪው ክፍል" : "Student Grade"}</td><td>${d.studentGrade}</td></tr>
+        <tr><td>${isAm ? "የትምህርት ዓይነቶች" : "Subjects Needed"}</td><td>${d.subjects.join(", ")}</td></tr>
+        <tr><td>${isAm ? "ፕሮግራም" : "Schedule"}</td><td>${d.daysPerWeek}, ${d.hoursPerDay}</td></tr>
+        <tr><td>${isAm ? "የትምህርት ቤት ዓይነት" : "School Type"}</td><td>${d.schoolType}${d.schoolType === "Private" ? " (" + d.curriculum + ")" : ""}</td></tr>
+        <tr><td>${isAm ? "የተማሪው ደረጃ" : "Student Status"}</td><td>${d.studentStatus}</td></tr>
+      </table>
+
+      <div class="pdf-section-title">${isAm ? "የአስጠኚ ምርጫ" : "Tutor Preferences"}</div>
+      <table class="pdf-table">
+        <tr><td>${isAm ? "ተመራጭ ጾታ" : "Preferred Tutor Gender"}</td><td>${genderLabel}</td></tr>
+        <tr><td>${isAm ? "የማስጠናት ሁኔታ" : "Mode"}</td><td>${modeLabel}</td></tr>
+      </table>
+    `;
+  }
+
+  function submitParentApp() {
+    const data = collectParentData();
+    const apps = dbGet("askuala_parent_apps");
+    apps.push(data);
+    dbSet("askuala_parent_apps", apps);
+    document.getElementById("pFinalSubmitBtn").disabled = true;
+    const banner = document.getElementById("parentSuccessBanner");
+    banner.textContent = t("submittedSuccess");
+    banner.classList.remove("hidden");
+    banner.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ================= ADMIN OWNER PORTAL ================= */
+  function openAdmin() {
+    document.getElementById("adminLockBox").classList.remove("hidden");
+    document.getElementById("adminDashboard").classList.add("hidden");
+    document.getElementById("adminLockErr").classList.add("hidden");
+    document.getElementById("adminPassInput").value = "";
+    showView("view-admin");
+  }
+
+  function unlockAdmin() {
+    const passEl = document.getElementById("adminPassInput");
+    if (passEl.value !== OWNER_PASSCODE) {
+      return directToMissing(passEl, "Incorrect owner passcode.", "adminLockErr");
+    }
+    document.getElementById("adminLockBox").classList.add("hidden");
+    document.getElementById("adminDashboard").classList.remove("hidden");
+    renderAdminDashboard();
+  }
+
+  function renderAdminDashboard() {
+    const parents = dbGet("askuala_parent_apps");
+    const tutors = dbGet("askuala_tutor_apps");
+    const matches = dbGet("askuala_matches");
+
+    document.getElementById("adminParentCount").textContent = parents.length;
+    document.getElementById("adminTutorCount").textContent = tutors.length;
+
+    document.getElementById("matchParentSelect").innerHTML = parents.length
+      ? parents.map(p => `<option value="${p.id}">${p.name} — ${p.studentGrade} | Needs ${p.preferredGender} (${p.location})</option>`).join("")
+      : `<option value="">No parent submissions yet</option>`;
+
+    document.getElementById("matchTutorSelect").innerHTML = tutors.length
+      ? tutors.map(tu => `<option value="${tu.id}">${tu.name} (${tu.sex || "?"}) — ${tu.education}${tu.universityName && tu.universityName !== "N/A (High School)" ? " @ " + tu.universityName : ""} (${tu.expectedFee})</option>`).join("")
+      : `<option value="">No tutor submissions yet</option>`;
+
+    document.getElementById("adminParentList").innerHTML = parents.map(p => `
+      <div class="admin-item">
+        <div><strong>${p.name}</strong> <span class="badge">${p.phone}</span></div>
+        <div style="font-size:0.9rem; color:#475569; margin-top:4px;">
+          📍 ${p.location} | 🎓 ${p.studentGrade} (${p.schoolType}${p.schoolType==='Private'?' - '+p.curriculum:''})<br/>
+          📚 ${p.subjects.join(", ")} | Status: <b>${p.studentStatus}</b><br/>
+          🕒 ${p.daysPerWeek}, ${p.hoursPerDay} | 💰 ${p.expectedPayment}<br/>
+          👤 Pref: <b>${p.preferredGender}</b> | Mode: <b>${p.mode}</b>
+        </div>
+      </div>
+    `).join("") || "<p style='color:#64748b;'>No parent applications submitted yet.</p>";
+
+    document.getElementById("adminTutorList").innerHTML = tutors.map(tu => `
+      <div class="admin-item">
+        <div><strong>${tu.name}</strong> <span class="badge">${tu.sex || ""}</span> <span class="badge">${tu.education}</span> <span class="badge">${tu.phone}</span></div>
+        <div style="font-size:0.9rem; color:#475569; margin-top:4px;">
+          ${tu.universityName && tu.universityName !== "N/A (High School)" ? `🏛️ <b>${tu.universityName}</b> (${tu.major})<br/>` : ""}
+          📍 ${tu.locations.join(", ")} | 💰 ${tu.expectedFee} | Mode: ${tu.mode || "N/A"} | Exp: ${tu.experience || "N/A"}<br/>
+          📚 ${tu.subjects.join(", ")} | Grades: ${tu.preferredGrades.join(", ")}<br/>
+          📊 Scores: ${JSON.stringify(tu.academics)}<br/>
+          📎 Docs: ${Object.entries(tu.documents).map(([k,v])=>`${k}: ${v.join(', ')}`).join(' | ')}
+        </div>
+      </div>
+    `).join("") || "<p style='color:#64748b;'>No tutor applications submitted yet.</p>";
+
+    document.getElementById("matchesList").innerHTML = matches.length
+      ? `<h4 style="margin-bottom:8px;">Confirmed Matches (${matches.length})</h4>` + matches.map(m => `
+        <div class="admin-item" style="border-color:#22c55e;">
+          <span class="badge badge-green">MATCHED</span>
+          <strong>Parent:</strong> ${m.parentName} (${m.parentPhone}) ⟷
+          <strong>Tutor:</strong> ${m.tutorName} (${m.tutorPhone})
+          <div style="font-size:0.84rem; color:#64748b;">Matched on ${m.matchedAt}</div>
+        </div>`).join("")
+      : "";
+  }
+
+  function createMatch() {
+    const pId = document.getElementById("matchParentSelect").value;
+    const tId = document.getElementById("matchTutorSelect").value;
+    if (!pId || !tId) return;
+
+    const p = dbGet("askuala_parent_apps").find(x => x.id === pId);
+    const tu = dbGet("askuala_tutor_apps").find(x => x.id === tId);
+    if (!p || !tu) return;
+
+    const matches = dbGet("askuala_matches");
+    matches.push({
+      id: "M_" + Date.now(),
+      parentId: p.id, parentName: p.name, parentPhone: p.phone,
+      tutorId: tu.id, tutorName: tu.name, tutorPhone: tu.phone,
+      matchedAt: new Date().toLocaleString()
+    });
+    dbSet("askuala_matches", matches);
+    renderAdminDashboard();
+  }
+
+  function exportBackup() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      users: dbGet("askuala_users"),
+      parents: dbGet("askuala_parent_apps"),
+      tutors: dbGet("askuala_tutor_apps"),
+      matches: dbGet("askuala_matches")
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "askuala-tutors-backup.json";
+    a.click();
+  }
+
+  /* ================= ADMIN 1-CLICK HERO PICTURE UPLOADER ================= */
+  function setupAdminHeroUploader() {
+    const input = document.getElementById("adminHeroUpload");
+    const status = document.getElementById("heroUploadStatus");
+    const resetBtn = document.getElementById("resetHeroBtn");
+
+    input.addEventListener("change", function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          localStorage.setItem("askuala_custom_hero", ev.target.result);
+          loadHeroImage();
+          status.textContent = "✓ Opening picture updated! Click 'Exit Admin' to see it.";
+        } catch {
+          status.textContent = "Image is too large for browser storage. Try a smaller JPG (< 2MB).";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    resetBtn.addEventListener("click", function() {
+      try { localStorage.removeItem("askuala_custom_hero"); } catch {}
+      loadHeroImage();
+      status.textContent = "Picture reset to folder hero.jpg.";
+    });
+  }
+
+  /* ================= BIND ALL EVENTS ================= */
+  document.addEventListener("DOMContentLoaded", function() {
+    loadHeroImage();
+    initTutorOptionsEnglishOnly();
+    setupAdminHeroUploader();
+
+    document.getElementById("brandHomeBtn").addEventListener("click", goHome);
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("langToggleBtn").addEventListener("click", toggleLang);
+
+    document.getElementById("btnChooseParent").addEventListener("click", () => selectRole("parent"));
+    document.getElementById("btnChooseTutor").addEventListener("click", () => selectRole("tutor"));
+
+    document.getElementById("authBackBtn").addEventListener("click", goHome);
+    document.getElementById("tabSignIn").addEventListener("click", () => setAuthMode("signin"));
+    document.getElementById("tabCreate").addEventListener("click", () => setAuthMode("signup"));
+    document.getElementById("authForm").addEventListener("submit", handleAuth);
+
+    document.getElementById("tEdu").addEventListener("change", handleTutorEduChange);
+    document.getElementById("tNext1").addEventListener("click", () => tutorGoStep(2));
+    document.getElementById("tPrev2").addEventListener("click", () => tutorGoStep(1));
+    document.getElementById("tNext2").addEventListener("click", validateAndProceedTutorStep2);
+    document.getElementById("tPrev3").addEventListener("click", () => tutorGoStep(2));
+    document.getElementById("tNext3").addEventListener("click", validateAndProceedTutorStep3);
+    document.getElementById("tPrev4").addEventListener("click", () => tutorGoStep(3));
+    document.getElementById("tFinalSubmitBtn").addEventListener("click", submitTutorApp);
+
+    document.getElementById("pSchoolType").addEventListener("change", togglePrivateCurriculum);
+    document.getElementById("pNext1").addEventListener("click", () => parentGoStep(2));
+    document.getElementById("pPrev2").addEventListener("click", () => parentGoStep(1));
+    document.getElementById("pNext2").addEventListener("click", () => parentGoStep(3));
+    document.getElementById("pPrev3").addEventListener("click", () => parentGoStep(2));
+    document.getElementById("pNext3").addEventListener("click", () => parentGoStep(4));
+    document.getElementById("pPrev4").addEventListener("click", () => parentGoStep(3));
+    document.getElementById("pFinalSubmitBtn").addEventListener("click", submitParentApp);
+
+    document.getElementById("openAdminLink").addEventListener("click", openAdmin);
+    document.getElementById("unlockAdminBtn").addEventListener("click", unlockAdmin);
+    document.getElementById("exitAdminBtn").addEventListener("click", goHome);
+    document.getElementById("createMatchBtn").addEventListener("click", createMatch);
+    document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
+
+    applyTranslations();
+  });
+})();
+</script>
+</body>
+</html>

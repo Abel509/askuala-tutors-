@@ -1,0 +1,6 @@
+{
+  "name": "ኣስኳላ Tutors",
+  "description": "Accessible bilingual tutor and family matching platform in Ethiopia featuring verified Grade 11+ tutors with 87%+ academic transcripts, an all-Amharic parent portal, unified PDF application dossiers, and live compatibility matching.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
