@@ -6,11 +6,9 @@ import {
   CheckCircle2,
   Copy,
   Download,
-  ExternalLink,
   Eye,
   EyeOff,
   FileText,
-  Globe,
   Handshake,
   ImagePlus,
   KeyRound,
@@ -51,7 +49,6 @@ import {
   type AuthResponse,
 } from '../utils/api';
 import { renderPdfBytesToPngUrls, type PreviewPageItem } from '../utils/pdfComposer';
-import { getSeparateWebsiteUrls } from '../utils/portalMode';
 import {
   rankTutorsForParentCriteria,
   type OwnerParentSearchCriteria,
@@ -61,14 +58,12 @@ import type {
   AdminParentItem,
   AdminTutorItem,
   MatchRecord,
-  SiteMode,
   TutorApplication,
   UserAccount,
 } from '../types/app';
 
 interface AdminConsoleProps {
   user: UserAccount | null;
-  siteMode?: SiteMode;
   onAuthenticatedAdmin?: (res: AuthResponse) => void;
   onHeroUpdated?: () => void;
   onBackHome: () => void;
@@ -95,7 +90,6 @@ const DEFAULT_FINDER_CRITERIA: OwnerParentSearchCriteria = {
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({
   user,
-  siteMode = 'tutor',
   onAuthenticatedAdmin,
   onHeroUpdated,
   onBackHome,
@@ -159,8 +153,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string>('');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('');
-
-  const websiteUrls = useMemo(() => getSeparateWebsiteUrls(), []);
 
   const handleCopyText = (key: string, text: string) => {
     navigator.clipboard?.writeText(text).catch(() => {});
@@ -623,18 +615,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
       {!isAuthorized ? (
         <div className="min-h-[65vh] flex flex-col justify-center max-w-lg mx-auto py-4">
           <div className="white-card p-6 sm:p-8 space-y-5">
-            {siteMode !== 'owner' && (
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#dcfce7]">
-                <button
-                  type="button"
-                  onClick={onBackHome}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-sm font-bold hover:bg-[#dcfce7] cursor-pointer"
-                >
-                  <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-                  <span>Exit to Home</span>
-                </button>
-              </div>
-            )}
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#dcfce7]">
+              <button
+                type="button"
+                onClick={onBackHome}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-sm font-bold hover:bg-[#dcfce7] cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                <span>Exit to Home</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-[#14532d] flex items-center justify-center shrink-0">
@@ -700,18 +690,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
-          {siteMode !== 'owner' && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={onBackHome}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#14532d] border-2 border-[#14532d] font-bold text-sm hover:bg-[#f0fdf4] shadow cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-                <span>Exit to Home</span>
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onBackHome}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#14532d] border-2 border-[#14532d] font-bold text-sm hover:bg-[#f0fdf4] shadow cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              <span>Exit to Home</span>
+            </button>
+          </div>
 
           {/* Header White Banner */}
           <div className="white-card p-6 flex flex-wrap items-center justify-between gap-4">
@@ -792,7 +780,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                 },
                 {
                   id: 'settings',
-                  label: 'Website Links, Password & Settings',
+                  label: 'Password & Picture Settings',
                 },
               ] as const
             ).map((t) => (
@@ -1932,86 +1920,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                 </div>
               )}
 
-              {/* TAB 5: SETTINGS & LINKS */}
+              {/* TAB 5: PASSWORD & PICTURE SETTINGS */}
               {tab === 'settings' && (
-                <div className="space-y-6">
-                  {/* Website Links Card */}
-                  <div className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#14532d] space-y-4">
-                    <div className="flex items-start gap-2.5">
-                      <Globe className="w-5 h-5 text-[#14532d] shrink-0 mt-0.5" aria-hidden="true" />
-                      <div>
-                        <h2 className="text-lg font-bold text-[#14532d]">
-                          Website Links (Tutor Site + Private Owner Console)
-                        </h2>
-                        <p className="text-xs sm:text-sm text-[#475569] mt-0.5">
-                          Share your main link (<code>/</code>) directly with Tutors &mdash; it shows
-                          strictly Tutor Sign In / Create Account with hidden 7-click Owner Access
-                          in the bottom-right footer. Or bookmark <code>/owner</code> for direct
-                          Owner login anytime.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {(
-                        [
-                          {
-                            key: 'tutor',
-                            title: '1. Public Tutor Application Website',
-                            desc: 'Tutor Sign In / Create Account only (with 7-click corner access)',
-                            url: websiteUrls.tutorUrl,
-                          },
-                          {
-                            key: 'owner',
-                            title: '2. Direct Private Owner Dashboard',
-                            desc: 'Password-protected coordinator matching & search portal',
-                            url: websiteUrls.ownerUrl,
-                          },
-                        ] as const
-                      ).map((item) => (
-                        <div
-                          key={item.key}
-                          className="p-3.5 rounded-xl bg-white border border-[#22c55e] flex flex-col justify-between gap-2.5"
-                        >
-                          <div>
-                            <p className="font-bold text-sm text-[#14532d]">{item.title}</p>
-                            <p className="text-xs text-[#475569]">{item.desc}</p>
-                            <code className="mt-2 block text-xs bg-[#f0fdf4] border border-[#bbf7d0] px-2.5 py-1.5 rounded font-mono text-[#14532d] break-all">
-                              {item.url}
-                            </code>
-                          </div>
-                          <div className="flex items-center gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyText(`site_${item.key}`, item.url)}
-                              className="flex-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-[#14532d] text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:bg-[#166534] cursor-pointer"
-                            >
-                              {copiedKey === `site_${item.key}` ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>Copied URL</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5" />
-                                  <span>Copy Link</span>
-                                </>
-                              )}
-                            </button>
-                            <a
-                              href={item.url}
-                              className="min-h-[34px] px-2.5 py-1 rounded-lg border border-[#14532d] bg-white text-[#14532d] text-xs font-bold inline-flex items-center gap-1 hover:bg-[#f0fdf4]"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>Open</span>
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Editable Owner Password */}
                     <div className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#22c55e] space-y-4">
                       <div className="flex items-center justify-between">
@@ -2147,7 +2058,6 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       </div>
                     </div>
                   </div>
-                </div>
               )}
             </div>
           )}

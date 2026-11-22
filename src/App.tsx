@@ -17,7 +17,12 @@ import type {
   UserAccount,
   UserRole,
 } from './types/app';
-import { fetchCurrentSession, logoutAccount, type AuthResponse } from './utils/api';
+import {
+  fetchCurrentSession,
+  logoutAccount,
+  setStoredToken,
+  type AuthResponse,
+} from './utils/api';
 import { detectSiteMode } from './utils/portalMode';
 
 type ActiveView = 'home' | 'auth' | 'tutor' | 'parent' | 'admin';
@@ -50,6 +55,15 @@ export default function App() {
   const clickResetRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (siteMode !== 'owner') {
+      // Whenever the public link is clicked/opened, always start fresh as new (Sign In / Create Account)
+      setStoredToken(null);
+      setUser(null);
+      setTutorApp(null);
+      setParentApp(null);
+      setBooting(false);
+      return;
+    }
     fetchCurrentSession()
       .then((res) => {
         if (res) {
@@ -59,7 +73,7 @@ export default function App() {
         }
       })
       .finally(() => setBooting(false));
-  }, []);
+  }, [siteMode]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

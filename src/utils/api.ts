@@ -75,14 +75,24 @@ export function isStandaloneFileMode(): boolean {
 }
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 export function setStoredToken(token: string | null) {
-  if (token) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } else {
+  try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+  if (token) {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } else {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 }
 
