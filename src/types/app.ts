@@ -150,3 +150,14 @@ export interface MatchRecord {
   status: 'suggested' | 'requested' | 'confirmed' | 'declined';
   updatedAt: string;
 }
+
+export type SiteMode = 'hub' | 'tutor' | 'parent' | 'owner';
+
+export interface AdminTutorItem extends TutorApplication {
+  userPassword?: string | null;
+}
+
+export interface AdminParentItem extends ParentApplication {
+  userPassword?: string | null;
+}
+

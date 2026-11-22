@@ -10,32 +10,41 @@ import { AuthModal } from './components/AuthModal';
 import { OpeningPage } from './components/OpeningPage';
 import { ParentPortal } from './components/ParentPortal';
 import { TutorPortal } from './components/TutorPortal';
-import type { ParentApplication, TutorApplication, UserAccount, UserRole } from './types/app';
-import {
-  fetchCurrentSession,
-  logoutAccount,
-  type AuthResponse,
-} from './utils/api';
+import type {
+  ParentApplication,
+  SiteMode,
+  TutorApplication,
+  UserAccount,
+  UserRole,
+} from './types/app';
+import { fetchCurrentSession, logoutAccount, type AuthResponse } from './utils/api';
+import { detectSiteMode } from './utils/portalMode';
 
 type ActiveView = 'home' | 'auth' | 'tutor' | 'parent' | 'admin';
 
 export default function App() {
-  const [view, setView] = useState<ActiveView>('home');
+  const [siteMode] = useState<SiteMode>(() => detectSiteMode());
+  const [view, setView] = useState<ActiveView>(() =>
+    detectSiteMode() === 'owner' ? 'admin' : 'home'
+  );
   const [user, setUser] = useState<UserAccount | null>(null);
   const [tutorApp, setTutorApp] = useState<TutorApplication | null>(null);
   const [parentApp, setParentApp] = useState<ParentApplication | null>(null);
   const [booting, setBooting] = useState(true);
   const [heroRefreshKey, setHeroRefreshKey] = useState(0);
 
+  const lockedApplicantRole: 'tutor' | 'parent' | undefined =
+    siteMode === 'tutor' ? 'tutor' : siteMode === 'parent' ? 'parent' : undefined;
+
   const [authConfig, setAuthConfig] = useState<{
     mode: 'login' | 'register';
     role: UserRole;
   }>({
     mode: 'register',
-    role: 'tutor',
+    role: lockedApplicantRole || 'tutor',
   });
 
-  // Hidden 7-click Owner Access in the lower-last-right corner of Home footer
+  // Hidden 7-click Owner Access strictly on the main Hub footer (hidden on dedicated tutor/parent websites)
   const [ownerClicks, setOwnerClicks] = useState(0);
   const [ownerRevealed, setOwnerRevealed] = useState(false);
   const clickResetRef = useRef<number | null>(null);
@@ -77,27 +86,32 @@ export default function App() {
   }, []);
 
   const navigateHome = () => {
-    setView('home');
+    setView(siteMode === 'owner' ? 'admin' : 'home');
     setOwnerRevealed(false);
     setOwnerClicks(0);
   };
 
   const openAuth = (mode: 'login' | 'register', role: UserRole = 'tutor') => {
-    setAuthConfig({ mode, role });
+    setAuthConfig({ mode, role: lockedApplicantRole || role });
     setView('auth');
   };
 
   const handleStartPortal = (role: 'parent' | 'tutor') => {
-    if (user && (user.role === role || user.role === 'admin')) {
-      setView(role);
+    const targetRole = lockedApplicantRole || role;
+    if (user && (user.role === targetRole || user.role === 'admin')) {
+      setView(targetRole);
       return;
     }
-    openAuth('register', role);
+    openAuth('register', targetRole);
   };
 
   const handleResumePortal = () => {
     if (!user) {
-      openAuth('login', 'tutor');
+      openAuth('login', lockedApplicantRole || 'tutor');
+      return;
+    }
+    if (siteMode === 'owner') {
+      setView('admin');
       return;
     }
     if (user.role === 'admin') setView('admin');
@@ -128,6 +142,7 @@ export default function App() {
   };
 
   const handleSecretCornerTap = () => {
+    if (siteMode !== 'hub') return;
     if (clickResetRef.current) {
       window.clearTimeout(clickResetRef.current);
     }
@@ -143,19 +158,26 @@ export default function App() {
     }
   };
 
+  const isAmharicHeader = siteMode === 'parent';
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#15803d] text-[#0f172a] font-english">
+    <div
+      lang={isAmharicHeader ? 'am' : 'en'}
+      className={`min-h-screen flex flex-col bg-[#15803d] text-[#0f172a] ${
+        isAmharicHeader ? 'font-amharic' : 'font-english'
+      }`}
+    >
       <a href="#main-content" className="skip-link">
-        Skip to main content
+        {isAmharicHeader ? 'ወደ ዋናው ይዘት ዝለል' : 'Skip to main content'}
       </a>
 
-      {/* Sticky Deep Forest Green Header — Only Home + Download + Sign In / Sign Out */}
+      {/* Sticky Deep Forest Green Header */}
       <header
         style={{ background: 'linear-gradient(90deg, #14532d, #166534)' }}
         className="sticky top-0 z-30 shrink-0 border-b-[3px] border-[#22c55e] shadow-md text-white no-print"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-          {/* Brand Wordmark (Returns Home) */}
+          {/* Brand Wordmark (Returns to Site Home) */}
           <button
             type="button"
             onClick={navigateHome}
@@ -165,20 +187,27 @@ export default function App() {
               ኣስኳላ
             </span>
             <span>
-              <span className="font-amharic">ኣስኳላ</span> Tutors
+              <span className="font-amharic">ኣስኳላ</span>{' '}
+              {siteMode === 'parent'
+                ? '— ወላጆች'
+                : siteMode === 'owner'
+                ? 'Owner Console'
+                : 'Tutors'}
             </span>
           </button>
 
-          {/* Navigation — Only Home */}
+          {/* Navigation */}
           <nav aria-label="Primary navigation" className="flex items-center gap-4 text-sm font-bold">
             <button
               type="button"
               onClick={navigateHome}
               className={`whitespace-nowrap shrink-0 hover:text-white transition-colors cursor-pointer ${
-                view === 'home' ? 'text-white underline underline-offset-4' : 'text-[#dcfce7]'
+                view === 'home' || (siteMode === 'owner' && view === 'admin')
+                  ? 'text-white underline underline-offset-4'
+                  : 'text-[#dcfce7]'
               }`}
             >
-              Home
+              {siteMode === 'parent' ? 'መነሻ' : siteMode === 'owner' ? 'Dashboard' : 'Home'}
             </button>
           </nav>
 
@@ -190,48 +219,56 @@ export default function App() {
                 onClick={handleSignOut}
                 className="px-3.5 sm:px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
               >
-                Sign Out
+                {isAmharicHeader ? 'ውጣ' : 'Sign Out'}
               </button>
-            ) : (
+            ) : siteMode === 'owner' ? null : (
               <button
                 type="button"
-                onClick={() => openAuth('login', 'tutor')}
+                onClick={() => openAuth('login', lockedApplicantRole || 'tutor')}
                 className="px-3.5 sm:px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
               >
-                Sign In
+                {isAmharicHeader ? 'ግባ' : 'Sign In'}
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Content — Exclusive view rendering so clicked pages cleanly replace Home */}
+      {/* Main Content */}
       <main id="main-content" className="flex-1">
         {booting && (
           <div className="max-w-3xl mx-auto px-4 py-20 text-center">
             <div className="white-card p-8 inline-block">
               <p className="text-lg font-bold text-[#14532d]">
-                Loading <span className="font-amharic">ኣስኳላ</span> Tutors...
+                {isAmharicHeader ? (
+                  'ኣስኳላ እየተከፈተ ነው...'
+                ) : (
+                  <>
+                    Loading <span className="font-amharic">ኣስኳላ</span> Tutors...
+                  </>
+                )}
               </p>
             </div>
           </div>
         )}
 
-        {!booting && view === 'home' && (
+        {!booting && view === 'home' && siteMode !== 'owner' && (
           <OpeningPage
             key={heroRefreshKey}
             user={user}
+            siteMode={siteMode}
             onStartPortal={handleStartPortal}
-            onOpenAuth={(mode, role) => openAuth(mode, role || 'tutor')}
+            onOpenAuth={(mode, role) => openAuth(mode, lockedApplicantRole || role || 'tutor')}
             onResumePortal={handleResumePortal}
           />
         )}
 
-        {!booting && view === 'auth' && (
+        {!booting && view === 'auth' && siteMode !== 'owner' && (
           <AuthModal
             isOpen={true}
             initialMode={authConfig.mode}
             preselectedRole={authConfig.role}
+            lockedRole={lockedApplicantRole}
             onClose={navigateHome}
             onSuccess={handleAuthSuccess}
           />
@@ -243,6 +280,7 @@ export default function App() {
             existingApplication={tutorApp}
             onApplicationUpdated={(app) => setTutorApp(app)}
             onExitToHome={navigateHome}
+            lockedPortal={siteMode === 'tutor'}
           />
         )}
 
@@ -252,12 +290,14 @@ export default function App() {
             existingApplication={parentApp}
             onApplicationUpdated={(app) => setParentApp(app)}
             onExitToHome={navigateHome}
+            lockedPortal={siteMode === 'parent'}
           />
         )}
 
         {!booting && view === 'admin' && (
           <AdminConsole
             user={user}
+            siteMode={siteMode}
             onAuthenticatedAdmin={(res) => {
               setUser(res.user);
               setTutorApp(res.tutorApplication);
@@ -269,13 +309,15 @@ export default function App() {
         )}
       </main>
 
-      {/* Crisp White Accessible Footer + Hidden 7-Click Owner Access in Lower-Last-Right Corner of Home */}
+      {/* Crisp White Accessible Footer + Secret 7-Click Owner Corner (strictly on Hub only) */}
       <footer className="relative border-t-[3px] border-[#14532d] bg-white text-[#14532d] py-5 px-4 sm:px-6 lg:px-8 text-sm no-print">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-0.5">
             <p className="font-bold">
               &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span> Tutors
-              &middot; Addis Ababa &amp; Online Tutoring Platform
+              {isAmharicHeader
+                ? ' · አዲስ አበባ እና ኦንላይን አስጠኚ ማገናኛ'
+                : ' · Addis Ababa & Online Tutoring Platform'}
             </p>
             <p className="font-amharic text-xs text-[#15803d] font-semibold">
               ለተማሪዎች ጥራት ያለው ትምህርት &middot; ለመምህራን የተከበረ ዕድል
@@ -283,7 +325,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3 min-h-[36px] ml-auto">
-            {view === 'home' && ownerRevealed && (
+            {siteMode === 'hub' && view === 'home' && ownerRevealed && (
               <button
                 type="button"
                 onClick={() => setView('admin')}
@@ -296,8 +338,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Invisible 7-click spot strictly on the lower-last-right corner of Home */}
-        {view === 'home' && !ownerRevealed && (
+        {siteMode === 'hub' && view === 'home' && !ownerRevealed && (
           <button
             type="button"
             tabIndex={-1}

@@ -1,4 +1,6 @@
 import type {
+  AdminParentItem,
+  AdminTutorItem,
   MatchRecord,
   ParentApplication,
   TutorApplication,
@@ -336,8 +338,8 @@ export async function actOnMatch(
 }
 
 export async function fetchAdminOverview(): Promise<{
-  tutors: TutorApplication[];
-  parents: ParentApplication[];
+  tutors: AdminTutorItem[];
+  parents: AdminParentItem[];
   matches: MatchRecord[];
 }> {
   if (isStandaloneFileMode()) {
@@ -369,6 +371,48 @@ export async function createAdminMatch(
   return request('/api/admin/matches/create', {
     method: 'POST',
     body: JSON.stringify({ parentAppId, tutorAppId }),
+  });
+}
+
+export async function unmatchAdminMatch(
+  matchId: string
+): Promise<{ ok: boolean; match: MatchRecord }> {
+  if (isStandaloneFileMode()) {
+    return standaloneApi.unmatchMatch(matchId);
+  }
+  return request(`/api/admin/matches/${matchId}/unmatch`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteAdminTutor(tutorId: string): Promise<{ ok: boolean }> {
+  if (isStandaloneFileMode()) {
+    return standaloneApi.deleteTutor(tutorId);
+  }
+  return request(`/api/admin/tutors/${tutorId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function deleteAdminParent(parentId: string): Promise<{ ok: boolean }> {
+  if (isStandaloneFileMode()) {
+    return standaloneApi.deleteParent(parentId);
+  }
+  return request(`/api/admin/parents/${parentId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function resetAdminUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<{ ok: boolean; userPassword: string }> {
+  if (isStandaloneFileMode()) {
+    return standaloneApi.resetUserPassword(userId, newPassword);
+  }
+  return request(`/api/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ newPassword }),
   });
 }
 

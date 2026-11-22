@@ -52,6 +52,7 @@ interface ParentPortalProps {
   existingApplication: ParentApplication | null;
   onApplicationUpdated: (app: ParentApplication) => void;
   onExitToHome: () => void;
+  lockedPortal?: boolean;
 }
 
 function createEmptyKid(index: number): KidProfileItem {
@@ -74,6 +75,7 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
   existingApplication,
   onApplicationUpdated,
   onExitToHome,
+  lockedPortal = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -222,8 +224,9 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
     id: string
   ) => {
     clearFieldError(`kid_${idx}_${field}`);
-    if (field === 'weekdaySlots' || field === 'weekendSlots') {
-      clearFieldError(`kid_${idx}_schedule`);
+    if (field === 'selectedDays') {
+      clearFieldError(`kid_${idx}_weekdaySlots`);
+      clearFieldError(`kid_${idx}_weekendSlots`);
     }
     setKids((prev) =>
       prev.map((k, i) => {
@@ -296,11 +299,11 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
         const hasWd = k.selectedDays.some((d) => d !== 'saturday' && d !== 'sunday');
         const hasWe = k.selectedDays.some((d) => d === 'saturday' || d === 'sunday');
         if (hasWd && k.weekdaySlots.length === 0) {
-          fields.add(`kid_${i}_schedule`);
-          messages.push(`ልጅ ${num}፡ ለመረጧቸው የሳምንቱ ቀናት የጥናት ሰዓት ይምረጡ።`);
+          fields.add(`kid_${i}_weekdaySlots`);
+          messages.push(`ልጅ ${num}፡ ለመረጧቸው የሳምንቱ ቀናት (ከሰኞ–ዓርብ) የጥናት ሰዓት ይምረጡ።`);
         }
         if (hasWe && k.weekendSlots.length === 0) {
-          fields.add(`kid_${i}_schedule`);
+          fields.add(`kid_${i}_weekendSlots`);
           messages.push(`ልጅ ${num}፡ ለመረጧቸው የቅዳሜ/እሑድ ቀናት የጥናት ሰዓት ይምረጡ።`);
         }
       }
@@ -571,6 +574,8 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
               <span>
                 {step > 1 && !submittedSuccess
                   ? `ወደ ክፍል ${step - 1} ተመለስ`
+                  : lockedPortal
+                  ? 'ወደ ወላጅ መነሻ ገጽ ተመለስ'
                   : 'ወደ ዋናው ገጽ ተመለስ'}
               </span>
             </button>
@@ -581,7 +586,7 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                 onClick={onExitToHome}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#14532d] bg-[#f0fdf4] text-[#14532d] font-bold text-sm hover:bg-[#dcfce7] cursor-pointer"
               >
-                <span>ወደ ዋናው ገጽ ውጣ</span>
+                <span>{lockedPortal ? 'ወላጅ መነሻ' : 'ወደ ዋናው ገጽ ውጣ'}</span>
               </button>
             )}
           </div>
@@ -1285,16 +1290,20 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                           </fieldset>
 
                           {kid.selectedDays.length > 0 && (
-                            <div
-                              data-field-error={isErr(`kid_${idx}_schedule`) ? 'true' : undefined}
-                              className={`grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl ${
-                                isErr(`kid_${idx}_schedule`) ? 'field-error p-2' : ''
-                              }`}
-                            >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl">
                               {hasWeekday && (
-                                <fieldset className="p-3.5 rounded-xl bg-white border border-[#bbf7d0]">
+                                <fieldset
+                                  data-field-error={
+                                    isErr(`kid_${idx}_weekdaySlots`) ? 'true' : undefined
+                                  }
+                                  className={`p-3.5 rounded-xl bg-white border-2 ${
+                                    isErr(`kid_${idx}_weekdaySlots`)
+                                      ? 'field-error'
+                                      : 'border-[#bbf7d0]'
+                                  }`}
+                                >
                                   <legend className="text-sm font-bold text-[#14532d] mb-2">
-                                    የሳምንቱ ቀናት ሰዓት (በኢትዮጵያ አቆጣጠር) *
+                                    የሳምንቱ ቀናት ሰዓት (በኢትዮጵያ አቆጣጠር) * (ግዴታ)
                                   </legend>
                                   <div className="space-y-2">
                                     {WEEKDAY_SLOTS.map((slot) => {
@@ -1325,9 +1334,18 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                               )}
 
                               {hasWeekend && (
-                                <fieldset className="p-3.5 rounded-xl bg-white border border-[#bbf7d0]">
+                                <fieldset
+                                  data-field-error={
+                                    isErr(`kid_${idx}_weekendSlots`) ? 'true' : undefined
+                                  }
+                                  className={`p-3.5 rounded-xl bg-white border-2 ${
+                                    isErr(`kid_${idx}_weekendSlots`)
+                                      ? 'field-error'
+                                      : 'border-[#bbf7d0]'
+                                  }`}
+                                >
                                   <legend className="text-sm font-bold text-[#14532d] mb-2">
-                                    የቅዳሜ እና እሑድ ሰዓት (በኢትዮጵያ አቆጣጠር) *
+                                    የቅዳሜ እና እሑድ ሰዓት (በኢትዮጵያ አቆጣጠር) * (ግዴታ)
                                   </legend>
                                   <div className="grid grid-cols-2 gap-2">
                                     {WEEKEND_SLOTS.map((slot) => {

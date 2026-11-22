@@ -1,5 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type {
+  AdminParentItem,
+  AdminTutorItem,
   MatchRecord,
   ParentApplication,
   TutorApplication,
@@ -536,6 +538,21 @@ export const standaloneApi = {
     if (duplicatePhone) {
       throw new Error('Each Ethiopian phone number can only be registered once. This number belongs to another account.');
     }
+    if (
+      payload.profile?.educationLevel === 'college' ||
+      payload.profile?.educationLevel === 'bachelors' ||
+      payload.profile?.educationLevel === 'certified_teacher'
+    ) {
+      const rawEsslce = payload.academicRecords?.esslceOutOf600;
+      if (rawEsslce !== undefined && rawEsslce !== '') {
+        const val = Number(rawEsslce);
+        if (Number.isNaN(val) || val < 450 || val > 600) {
+          throw new Error(
+            `ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are automatically blocked.`
+          );
+        }
+      }
+    }
     if (payload.submit && (!payload.nationalIdFront?.fileId || !payload.nationalIdBack?.fileId)) {
       throw new Error('Please upload both Front and Back photos of your National ID.');
     }
@@ -701,11 +718,81 @@ export const standaloneApi = {
     return { ok: true };
   },
 
-  adminOverview() {
+  adminOverview(): {
+    tutors: AdminTutorItem[];
+    parents: AdminParentItem[];
+    matches: MatchRecord[];
+  } {
     const db = getDb();
     recomputeMatches(db);
     saveDb(db);
-    return { tutors: db.tutorApplications, parents: db.parentApplications, matches: db.matches };
+    const pwByUser = new Map<string, string>();
+    for (const u of db.users) {
+      if (u.role !== 'admin') pwByUser.set(u.id, u.password);
+    }
+    return {
+      tutors: db.tutorApplications.map((t) => ({
+        ...t,
+        userPassword: pwByUser.get(t.userId) ?? null,
+      })),
+      parents: db.parentApplications.map((p) => ({
+        ...p,
+        userPassword: pwByUser.get(p.userId) ?? null,
+      })),
+      matches: db.matches,
+    };
+  },
+
+  resetUserPassword(userId: string, newPassword: string) {
+    const db = getDb();
+    const target = db.users.find((u) => u.id === userId && u.role !== 'admin');
+    if (!target) throw new Error('Applicant account not found.');
+    const cleaned = (newPassword || '').trim();
+    if (cleaned.length < 6) throw new Error('New password must be at least 6 characters.');
+    target.password = cleaned;
+    saveDb(db);
+    return { ok: true, userPassword: cleaned };
+  },
+
+  deleteTutor(tutorId: string) {
+    const db = getDb();
+    const idx = db.tutorApplications.findIndex((t) => t.id === tutorId);
+    if (idx === -1) throw new Error('Tutor application not found.');
+    const [removed] = db.tutorApplications.splice(idx, 1);
+
+    const affectedConfirmedParentIds = db.matches
+      .filter((m) => m.tutorAppId === removed.id && m.status === 'confirmed')
+      .map((m) => m.parentAppId);
+
+    db.matches = db.matches.filter((m) => m.tutorAppId !== removed.id);
+    for (const pId of affectedConfirmedParentIds) {
+      const stillMatched = db.matches.some(
+        (m) => m.parentAppId === pId && m.status === 'confirmed'
+      );
+      if (!stillMatched) {
+        const pApp = db.parentApplications.find((p) => p.id === pId);
+        if (pApp && pApp.status === 'matched') pApp.status = 'submitted';
+      }
+    }
+
+    db.users = db.users.filter((u) => u.id !== removed.userId || u.role === 'admin');
+    if (db.currentUserId === removed.userId) db.currentUserId = null;
+    recomputeMatches(db);
+    saveDb(db);
+    return { ok: true };
+  },
+
+  deleteParent(parentId: string) {
+    const db = getDb();
+    const idx = db.parentApplications.findIndex((p) => p.id === parentId);
+    if (idx === -1) throw new Error('Parent application not found.');
+    const [removed] = db.parentApplications.splice(idx, 1);
+    db.matches = db.matches.filter((m) => m.parentAppId !== removed.id);
+    db.users = db.users.filter((u) => u.id !== removed.userId || u.role === 'admin');
+    if (db.currentUserId === removed.userId) db.currentUserId = null;
+    recomputeMatches(db);
+    saveDb(db);
+    return { ok: true };
   },
 
   updateTutorStatus(tutorId: string, status: TutorApplication['status']) {
@@ -755,5 +842,25 @@ export const standaloneApi = {
     parent.status = 'matched';
     saveDb(db);
     return { match };
+  },
+
+  unmatchMatch(matchId: string) {
+    const db = getDb();
+    const match = db.matches.find((m) => m.id === matchId);
+    if (!match) throw new Error('Match not found.');
+    match.status = 'suggested';
+    match.updatedAt = new Date().toISOString();
+    const stillConfirmedForParent = db.matches.some(
+      (m) => m.parentAppId === match.parentAppId && m.status === 'confirmed'
+    );
+    if (!stillConfirmedForParent) {
+      const parent = db.parentApplications.find((p) => p.id === match.parentAppId);
+      if (parent && parent.status === 'matched') {
+        parent.status = 'submitted';
+      }
+    }
+    recomputeMatches(db);
+    saveDb(db);
+    return { ok: true, match };
   },
 };

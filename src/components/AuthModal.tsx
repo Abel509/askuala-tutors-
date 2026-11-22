@@ -21,6 +21,7 @@ interface AuthModalProps {
   isOpen: boolean;
   initialMode: 'login' | 'register';
   preselectedRole: UserRole;
+  lockedRole?: 'tutor' | 'parent';
   onClose: () => void;
   onSuccess: (auth: AuthResponse) => void;
 }
@@ -29,12 +30,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   initialMode,
   preselectedRole,
+  lockedRole,
   onClose,
   onSuccess,
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [role, setRole] = useState<'tutor' | 'parent'>(
-    preselectedRole === 'parent' ? 'parent' : 'tutor'
+    lockedRole || (preselectedRole === 'parent' ? 'parent' : 'tutor')
   );
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -48,13 +50,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      if (preselectedRole === 'parent' || preselectedRole === 'tutor') {
+      if (lockedRole) {
+        setRole(lockedRole);
+      } else if (preselectedRole === 'parent' || preselectedRole === 'tutor') {
         setRole(preselectedRole);
       }
       setError(null);
       setSuggestedPassword(suggestStrong8CharPassword());
     }
-  }, [isOpen, initialMode, preselectedRole]);
+  }, [isOpen, initialMode, preselectedRole, lockedRole]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -203,7 +207,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {mode === 'register' && (
+        {mode === 'register' && !lockedRole && (
           <fieldset className="mb-4">
             <legend className="text-sm font-bold text-[#14532d] mb-2">
               {isAmharicUI ? 'የአካውንት ዓይነት ይምረጡ' : 'Select Account Type'}

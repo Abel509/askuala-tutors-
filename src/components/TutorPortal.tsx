@@ -57,6 +57,7 @@ interface TutorPortalProps {
   existingApplication: TutorApplication | null;
   onApplicationUpdated: (app: TutorApplication) => void;
   onExitToHome: () => void;
+  lockedPortal?: boolean;
 }
 
 export const TutorPortal: React.FC<TutorPortalProps> = ({
@@ -64,6 +65,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
   existingApplication,
   onApplicationUpdated,
   onExitToHome,
+  lockedPortal = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -194,6 +196,11 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     }
   }, [profile.educationLevel]);
 
+  const requiresEsslce =
+    profile.educationLevel === 'college' ||
+    profile.educationLevel === 'bachelors' ||
+    profile.educationLevel === 'certified_teacher';
+
   const below87Violations = useMemo(() => {
     const violations: string[] = [];
     for (const f of requiredGradeFields) {
@@ -207,6 +214,19 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     }
     return violations;
   }, [requiredGradeFields, academicRecords]);
+
+  const esslceViolation = useMemo(() => {
+    if (!requiresEsslce) return null;
+    const raw = academicRecords.esslceOutOf600;
+    if (!raw || raw.trim() === '') return null;
+    const num = Number(raw);
+    if (Number.isNaN(num) || num < 450 || num > 600) {
+      return `ESSLCE Score: ${raw} (must be 450 to 600 — scores below 450 are automatically blocked)`;
+    }
+    return null;
+  }, [requiresEsslce, academicRecords.esslceOutOf600]);
+
+  const hasAcademicBlock = below87Violations.length > 0 || Boolean(esslceViolation);
 
   const requiredDocs = useMemo(
     () => getRequiredAcademicDocuments(profile.educationLevel),
@@ -253,8 +273,11 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     id: string
   ) => {
     clearFieldError(field);
-    if (field === 'weekdaySlots' || field === 'weekendSlots') {
-      clearFieldError('schedule');
+    if (field === 'weekdaySlots' || field === 'preferredDays') {
+      clearFieldError('schedule_weekday');
+    }
+    if (field === 'weekendSlots' || field === 'preferredDays') {
+      clearFieldError('schedule_weekend');
     }
     setProfile((prev) => {
       const list = prev[field];
@@ -262,6 +285,9 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       return { ...prev, [field]: next };
     });
   };
+
+  const hasSelectedWeekday = profile.preferredDays.some((d) => d !== 'saturday' && d !== 'sunday');
+  const hasSelectedWeekend = profile.preferredDays.some((d) => d === 'saturday' || d === 'sunday');
 
   const validateStep1All = (): { fields: Set<string>; messages: string[] } => {
     const fields = new Set<string>();
@@ -309,10 +335,19 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     if (profile.preferredDays.length === 0) {
       fields.add('preferredDays');
       messages.push('Select at least one Preferred Day.');
-    }
-    if (profile.weekdaySlots.length === 0 && profile.weekendSlots.length === 0) {
-      fields.add('schedule');
-      messages.push('Select at least one Preferred Schedule time slot (Weekday or Weekend).');
+    } else {
+      if (hasSelectedWeekday && profile.weekdaySlots.length === 0) {
+        fields.add('schedule_weekday');
+        messages.push(
+          'You selected Monday–Friday day(s): please select at least one Weekday Schedule time slot.'
+        );
+      }
+      if (hasSelectedWeekend && profile.weekendSlots.length === 0) {
+        fields.add('schedule_weekend');
+        messages.push(
+          'You selected Saturday/Sunday: please select at least one Weekend Schedule time slot.'
+        );
+      }
     }
 
     return { fields, messages };
@@ -336,14 +371,6 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       }
     }
 
-    if (profile.educationLevel === 'college') {
-      const e = Number(academicRecords.esslceOutOf600);
-      if (!academicRecords.esslceOutOf600 || Number.isNaN(e) || e <= 0 || e > 600) {
-        fields.add('esslceOutOf600');
-        messages.push('ESSLCE score converted out of 600 (1–600) is required.');
-      }
-    }
-
     if (
       profile.educationLevel === 'bachelors' ||
       profile.educationLevel === 'certified_teacher'
@@ -353,10 +380,19 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
         fields.add('graduationCgpa');
         messages.push('Graduation CGPA (out of 4.00) is required.');
       }
-      const e = Number(academicRecords.esslceOutOf600);
-      if (!academicRecords.esslceOutOf600 || Number.isNaN(e) || e <= 0) {
+    }
+
+    if (requiresEsslce) {
+      const rawEsslce = academicRecords.esslceOutOf600;
+      const e = Number(rawEsslce);
+      if (!rawEsslce || rawEsslce.trim() === '' || Number.isNaN(e)) {
         fields.add('esslceOutOf600');
-        messages.push('ESSLCE National Exam Score is required.');
+        messages.push('ESSLCE National Exam Score (out of 600) is required.');
+      } else if (e < 450 || e > 600) {
+        fields.add('esslceOutOf600');
+        messages.push(
+          `Automatic Block: ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are not eligible.`
+        );
       }
     }
 
@@ -661,7 +697,13 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border-2 border-[#22c55e] bg-white text-[#14532d] font-bold text-sm hover:bg-[#f0fdf4] cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-              <span>{step > 1 && !submittedSuccess ? `Back to Section ${step - 1}` : 'Back to Home'}</span>
+              <span>
+                {step > 1 && !submittedSuccess
+                  ? `Back to Section ${step - 1}`
+                  : lockedPortal
+                  ? 'Back to Tutor Home'
+                  : 'Back to Home'}
+              </span>
             </button>
 
             {step > 1 && !submittedSuccess && (
@@ -670,7 +712,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                 onClick={onExitToHome}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#14532d] bg-[#f0fdf4] text-[#14532d] font-bold text-sm hover:bg-[#dcfce7] cursor-pointer"
               >
-                <span>Exit to Home</span>
+                <span>{lockedPortal ? 'Tutor Home' : 'Exit to Home'}</span>
               </button>
             )}
           </div>
@@ -1200,15 +1242,16 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                   </fieldset>
 
                   {/* Preferred Schedule (Ethiopian Time) */}
-                  <div
-                    data-field-error={isErr('schedule') ? 'true' : undefined}
-                    className={`grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl ${
-                      isErr('schedule') ? 'field-error p-2' : ''
-                    }`}
-                  >
-                    <fieldset className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl">
+                    <fieldset
+                      data-field-error={isErr('schedule_weekday') ? 'true' : undefined}
+                      className={`p-4 rounded-xl bg-[#f0fdf4] border-2 ${
+                        isErr('schedule_weekday') ? 'field-error' : 'border-[#bbf7d0]'
+                      }`}
+                    >
                       <legend className="text-sm font-bold text-[#14532d] mb-2">
-                        Weekday Schedule (Ethiopian Time) *
+                        Weekday Schedule (Ethiopian Time)
+                        {hasSelectedWeekday ? ' * (Required for selected Mon–Fri day)' : ''}
                       </legend>
                       <div className="space-y-2">
                         {WEEKDAY_SLOTS.map((slot) => {
@@ -1236,9 +1279,15 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                       </div>
                     </fieldset>
 
-                    <fieldset className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0]">
+                    <fieldset
+                      data-field-error={isErr('schedule_weekend') ? 'true' : undefined}
+                      className={`p-4 rounded-xl bg-[#f0fdf4] border-2 ${
+                        isErr('schedule_weekend') ? 'field-error' : 'border-[#bbf7d0]'
+                      }`}
+                    >
                       <legend className="text-sm font-bold text-[#14532d] mb-2">
-                        Weekend Schedule (Ethiopian Time) *
+                        Weekend Schedule (Ethiopian Time)
+                        {hasSelectedWeekend ? ' * (Required for selected Sat/Sun)' : ''}
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {WEEKEND_SLOTS.map((slot) => {
@@ -1275,8 +1324,9 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                     <span>
                       Instruction: Entering scores for{' '}
                       <strong>{EDUCATION_LEVEL_LABELS[profile.educationLevel]}</strong>. Transcript
-                      average for EACH grade must be <strong>87 or above</strong>. Below 87 is
-                      automatically blocked.
+                      average for EACH grade must be <strong>87 or above</strong>, and ESSLCE
+                      score must be <strong>450 or above</strong> (for college &amp; graduates).
+                      Scores below the threshold are automatically blocked.
                     </span>
                   </div>
 
@@ -1354,42 +1404,43 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                       </div>
                     )}
 
-                    {(profile.educationLevel === 'college' ||
-                      profile.educationLevel === 'bachelors' ||
-                      profile.educationLevel === 'certified_teacher') && (
-                      <div data-field-error={isErr('esslceOutOf600') ? 'true' : undefined}>
-                        <label
-                          htmlFor="rec-esslce"
-                          className="block text-sm font-bold text-[#14532d] mb-1"
-                        >
-                          {profile.educationLevel === 'college'
-                            ? 'ESSLCE Score Converted Out of 600 *'
-                            : 'ESSLCE National Exam Score *'}
-                        </label>
-                        <input
-                          id="rec-esslce"
-                          type="number"
-                          min="0"
-                          max="700"
-                          aria-invalid={isErr('esslceOutOf600')}
-                          value={academicRecords.esslceOutOf600 || ''}
-                          onChange={(e) => {
-                            clearFieldError('esslceOutOf600');
-                            setAcademicRecords({
-                              ...academicRecords,
-                              esslceOutOf600: e.target.value,
-                            });
-                          }}
-                          placeholder="e.g. 540"
-                          className={`w-full min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white tabular-nums ${
-                            isErr('esslceOutOf600') ? 'field-error' : 'border-[#cbd5e1]'
-                          }`}
-                        />
-                      </div>
-                    )}
+                    {requiresEsslce && (() => {
+                      const esslceFlagged = Boolean(esslceViolation) || isErr('esslceOutOf600');
+                      return (
+                        <div data-field-error={esslceFlagged ? 'true' : undefined}>
+                          <label
+                            htmlFor="rec-esslce"
+                            className="block text-sm font-bold text-[#14532d] mb-1"
+                          >
+                            {profile.educationLevel === 'college'
+                              ? 'ESSLCE Score Converted Out of 600 * (≥ 450 required)'
+                              : 'ESSLCE National Exam Score (out of 600) * (≥ 450 required)'}
+                          </label>
+                          <input
+                            id="rec-esslce"
+                            type="number"
+                            min="0"
+                            max="600"
+                            aria-invalid={esslceFlagged}
+                            value={academicRecords.esslceOutOf600 || ''}
+                            onChange={(e) => {
+                              clearFieldError('esslceOutOf600');
+                              setAcademicRecords({
+                                ...academicRecords,
+                                esslceOutOf600: e.target.value,
+                              });
+                            }}
+                            placeholder="450 – 600"
+                            className={`w-full min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white tabular-nums ${
+                              esslceFlagged ? 'field-error' : 'border-[#cbd5e1]'
+                            }`}
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {below87Violations.length > 0 && (
+                  {hasAcademicBlock && (
                     <div
                       role="alert"
                       aria-live="assertive"
@@ -1397,11 +1448,14 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                     >
                       <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                       <div>
-                        <p>Automatic Block &mdash; Transcript Average Below 87%</p>
+                        <p>
+                          Automatic Block &mdash; Academic Eligibility Requirement Not Met
+                        </p>
                         <ul className="list-disc ml-5 text-sm mt-1 font-normal">
                           {below87Violations.map((v) => (
                             <li key={v}>{v}</li>
                           ))}
+                          {esslceViolation && <li>{esslceViolation}</li>}
                         </ul>
                       </div>
                     </div>
@@ -1870,7 +1924,7 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                     disabled={
                       saving ||
                       isBlockedBelowGrade11 ||
-                      (step === 2 && below87Violations.length > 0)
+                      (step === 2 && hasAcademicBlock)
                     }
                     className="min-h-[44px] px-6 py-2.5 rounded-xl bg-[#14532d] text-white font-bold hover:bg-[#166534] disabled:opacity-40 cursor-pointer"
                   >

@@ -67,6 +67,11 @@
       "token": "201dba22714b2672c38053e487a9d74c7d7e21a384b18805",
       "userId": "user_admin_1",
       "createdAt": "2026-11-19T09:35:29.425Z"
+    },
+    {
+      "token": "bc833e9922eb6e17c521c0a941a14c2888cc197afd3ce423",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-22T19:29:52.673Z"
     }
   ],
   "tutorApplications": [
@@ -313,57 +318,8 @@
       ],
       "status": "suggested",
       "updatedAt": "2026-11-19T06:50:56.672Z"
-    },
-    {
-      "id": "match_5a3f1c07",
-      "parentAppId": "papp_32e8d5d7",
-      "tutorAppId": "tapp_b539a8ef",
-      "parentName": "ወላጅ ሙከራ",
-      "parentPhone": "+251923376826",
-      "parentLocation": "bole",
-      "parentBudget": "400_500",
-      "tutorName": "Test Tutor",
-      "tutorPhone": "+251913376826",
-      "tutorEducation": "grade_11",
-      "tutorFee": "400_600",
-      "tutorMode": "in_person",
-      "compatibilityScore": 60,
-      "matchedSubjects": [
-        "math"
-      ],
-      "matchedLocations": [
-        "bole"
-      ],
-      "matchedSchedule": [],
-      "status": "suggested",
-      "updatedAt": "2026-11-22T18:49:37.156Z"
-    },
-    {
-      "id": "match_0159b7bd",
-      "parentAppId": "papp_1",
-      "tutorAppId": "tapp_cbd598aa",
-      "parentName": "አቶ ታደሰ ገብረማርያም",
-      "parentPhone": "+251933445566",
-      "parentLocation": "4_kilo",
-      "parentBudget": "max_600",
-      "tutorName": "Test Tutor",
-      "tutorPhone": "+251936461062",
-      "tutorEducation": "grade_12",
-      "tutorFee": "400_600",
-      "tutorMode": "both",
-      "compatibilityScore": 41,
-      "matchedSubjects": [
-        "mathematics"
-      ],
-      "matchedLocations": [
-        "4_kilo"
-      ],
-      "matchedSchedule": [
-        "wd_10_11"
-      ],
-      "status": "suggested",
-      "updatedAt": "2026-11-19T14:28:31.680Z"
     }
   ],
-  "ownerPasscode": "askuala@2026"
+  "ownerPasscode": "askuala@2026",
+  "recoveryKey": "6710c7acc1900ec65020410e57d00150d7c95a583b0beb8af8a3dcd0cd93fe72"
 }

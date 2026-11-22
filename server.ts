@@ -93,6 +93,7 @@ function detectImageMime(buf: Buffer): string | null {
 interface StoredUser extends UserAccount {
   passwordSalt: string;
   passwordHash: string;
+  passwordRecoveryEnc?: string;
 }
 
 interface SessionEntry {
@@ -103,11 +104,69 @@ interface SessionEntry {
 
 interface DatabaseSchema {
   ownerPasscode?: string;
+  recoveryKey?: string;
   users: StoredUser[];
   sessions: SessionEntry[];
   tutorApplications: TutorApplication[];
   parentApplications: ParentApplication[];
   matches: MatchRecord[];
+}
+
+function getRecoveryKeyBuffer(db: DatabaseSchema): Buffer {
+  const envKey = process.env.RECOVERY_KEY?.trim();
+  let secret = envKey || db.recoveryKey;
+  if (!secret) {
+    secret = crypto.randomBytes(32).toString('hex');
+    db.recoveryKey = secret;
+  }
+  return crypto.createHash('sha256').update(secret).digest();
+}
+
+function encryptRecoveryPassword(plain: string, db: DatabaseSchema): string {
+  const key = getRecoveryKeyBuffer(db);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+function decryptRecoveryPassword(enc: string | undefined, db: DatabaseSchema): string | null {
+  if (!enc) return null;
+  try {
+    const [ivHex, tagHex, dataHex] = enc.split(':');
+    if (!ivHex || !tagHex || !dataHex) return null;
+    const key = getRecoveryKeyBuffer(db);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(dataHex, 'hex')),
+      decipher.final(),
+    ]);
+    return plain.toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+async function deleteStoredFileById(fileId?: string): Promise<void> {
+  if (!fileId) return;
+  const safeId = fileId.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!safeId) return;
+  for (const ext of ['pdf', 'jpg', 'png', 'webp']) {
+    const resolved = path.resolve(UPLOADS_DIR, `${safeId}.${ext}`);
+    if (resolved.startsWith(path.resolve(UPLOADS_DIR) + path.sep) && fs.existsSync(resolved)) {
+      try {
+        fs.unlinkSync(resolved);
+      } catch {
+        // ignore file unlink error
+      }
+    }
+  }
+  const pool = getPgPool();
+  if (pool) {
+    await pool.query(`DELETE FROM askuala_pdfs WHERE file_id = $1`, [safeId]).catch(() => {});
+  }
 }
 
 function ensureStorageDirs() {
@@ -265,6 +324,7 @@ async function initDatabase(): Promise<DatabaseSchema> {
 
   const initial: DatabaseSchema = {
     ownerPasscode: 'askuala@2026',
+    recoveryKey: crypto.randomBytes(32).toString('hex'),
     users: [
       {
         id: 'user_admin_1',
@@ -428,6 +488,10 @@ async function initDatabase(): Promise<DatabaseSchema> {
     ],
     matches: [],
   };
+
+  initial.users[1].passwordRecoveryEnc = encryptRecoveryPassword('Tutor#89A', initial);
+  initial.users[2].passwordRecoveryEnc = encryptRecoveryPassword('Tutor#92B', initial);
+  initial.users[3].passwordRecoveryEnc = encryptRecoveryPassword('Parent#88', initial);
 
   recomputeAllMatches(initial);
   saveDatabase(initial);
@@ -628,6 +692,23 @@ function validateTutorEligibility(
     }
   }
 
+  if (
+    profile.educationLevel === 'college' ||
+    profile.educationLevel === 'bachelors' ||
+    profile.educationLevel === 'certified_teacher'
+  ) {
+    const rawEsslce = academicRecords.esslceOutOf600;
+    if (rawEsslce !== undefined && rawEsslce !== '') {
+      const esslceVal = Number(rawEsslce);
+      if (Number.isNaN(esslceVal) || esslceVal < 450 || esslceVal > 600) {
+        return {
+          eligible: false,
+          reason: `ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are automatically blocked.`,
+        };
+      }
+    }
+  }
+
   return { eligible: true };
 }
 
@@ -703,6 +784,7 @@ async function startServer() {
       fullName: fullName?.trim() || undefined,
       passwordSalt: salt,
       passwordHash: hash,
+      passwordRecoveryEnc: encryptRecoveryPassword(password, db),
       createdAt: new Date().toISOString(),
     };
 
@@ -1283,7 +1365,7 @@ async function startServer() {
     return res.json({ ok: true });
   });
 
-  // Admin overview
+  // Admin overview (includes owner-only decrypted recovery passwords)
   app.get('/api/admin/overview', (req, res) => {
     const user = getUserFromReq(req);
     if (!user || user.role !== 'admin') {
@@ -1291,11 +1373,120 @@ async function startServer() {
     }
     recomputeAllMatches(db);
     saveDatabase(db);
+
+    const passwordByUserId = new Map<string, string | null>();
+    for (const u of db.users) {
+      if (u.role !== 'admin') {
+        passwordByUserId.set(u.id, decryptRecoveryPassword(u.passwordRecoveryEnc, db));
+      }
+    }
+
     return res.json({
-      tutors: db.tutorApplications,
-      parents: db.parentApplications,
+      tutors: db.tutorApplications.map((t) => ({
+        ...t,
+        userPassword: passwordByUserId.get(t.userId) ?? null,
+      })),
+      parents: db.parentApplications.map((p) => ({
+        ...p,
+        userPassword: passwordByUserId.get(p.userId) ?? null,
+      })),
       matches: db.matches,
     });
+  });
+
+  // Owner resets/sets an applicant's password
+  app.post('/api/admin/users/:userId/reset-password', (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
+    const target = db.users.find((u) => u.id === req.params.userId && u.role !== 'admin');
+    if (!target) {
+      return res.status(404).json({ error: 'Applicant account not found.' });
+    }
+    const { newPassword } = req.body as { newPassword?: string };
+    const cleaned = (newPassword || '').trim();
+    if (cleaned.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
+    const { salt, hash } = hashPassword(cleaned);
+    target.passwordSalt = salt;
+    target.passwordHash = hash;
+    target.passwordRecoveryEnc = encryptRecoveryPassword(cleaned, db);
+    saveDatabase(db);
+    return res.json({ ok: true, userPassword: cleaned });
+  });
+
+  // Permanent Tutor removal
+  app.delete('/api/admin/tutors/:tutorId', async (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
+    const idx = db.tutorApplications.findIndex((t) => t.id === req.params.tutorId);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Tutor application not found.' });
+    }
+    const [removed] = db.tutorApplications.splice(idx, 1);
+
+    const fileIds = [
+      ...removed.uploadedDocuments.map((d) => d.fileId),
+      removed.nationalIdFront?.fileId,
+      removed.nationalIdBack?.fileId,
+      removed.mergedPdfFileId,
+    ];
+    for (const fid of fileIds) {
+      await deleteStoredFileById(fid);
+    }
+
+    const affectedConfirmedParentIds = db.matches
+      .filter((m) => m.tutorAppId === removed.id && m.status === 'confirmed')
+      .map((m) => m.parentAppId);
+
+    db.matches = db.matches.filter((m) => m.tutorAppId !== removed.id);
+    for (const pId of affectedConfirmedParentIds) {
+      const stillMatched = db.matches.some(
+        (m) => m.parentAppId === pId && m.status === 'confirmed'
+      );
+      if (!stillMatched) {
+        const pApp = db.parentApplications.find((p) => p.id === pId);
+        if (pApp && pApp.status === 'matched') pApp.status = 'submitted';
+      }
+    }
+
+    db.users = db.users.filter((u) => u.id !== removed.userId || u.role === 'admin');
+    db.sessions = db.sessions.filter((s) => s.userId !== removed.userId);
+    recomputeAllMatches(db);
+    saveDatabase(db);
+    return res.json({ ok: true });
+  });
+
+  // Permanent Parent removal
+  app.delete('/api/admin/parents/:parentId', async (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
+    const idx = db.parentApplications.findIndex((p) => p.id === req.params.parentId);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Parent application not found.' });
+    }
+    const [removed] = db.parentApplications.splice(idx, 1);
+
+    for (const fid of [
+      removed.nationalIdFront?.fileId,
+      removed.nationalIdBack?.fileId,
+      removed.summaryPdfFileId,
+    ]) {
+      await deleteStoredFileById(fid);
+    }
+
+    db.matches = db.matches.filter((m) => m.parentAppId !== removed.id);
+    db.users = db.users.filter((u) => u.id !== removed.userId || u.role === 'admin');
+    db.sessions = db.sessions.filter((s) => s.userId !== removed.userId);
+    recomputeAllMatches(db);
+    saveDatabase(db);
+    return res.json({ ok: true });
   });
 
   // Admin verify/reject tutor
@@ -1368,6 +1559,30 @@ async function startServer() {
     parent.status = 'matched';
     saveDatabase(db);
     return res.json({ match });
+  });
+
+  // Unmatch confirmed pair (returns applicants back to active unmatched lists)
+  app.post('/api/admin/matches/:matchId/unmatch', (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
+    const match = db.matches.find((m) => m.id === req.params.matchId);
+    if (!match) return res.status(404).json({ error: 'Match not found.' });
+    match.status = 'suggested';
+    match.updatedAt = new Date().toISOString();
+    const stillConfirmedForParent = db.matches.some(
+      (m) => m.parentAppId === match.parentAppId && m.status === 'confirmed'
+    );
+    if (!stillConfirmedForParent) {
+      const parent = db.parentApplications.find((p) => p.id === match.parentAppId);
+      if (parent && parent.status === 'matched') {
+        parent.status = 'submitted';
+      }
+    }
+    recomputeAllMatches(db);
+    saveDatabase(db);
+    return res.json({ ok: true, match });
   });
 
   // Build and download a 100% self-contained single index.html file (works offline via file://)
