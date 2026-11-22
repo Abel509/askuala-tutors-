@@ -12,6 +12,61 @@ import {
 } from './standaloneStore';
 
 const TOKEN_STORAGE_KEY = 'askuala_session_token';
+const SESSION_FILE_CACHE = new Map<string, Uint8Array>();
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const slice = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...slice);
+  }
+  return btoa(binary);
+}
+
+export async function optimizeNationalIdPhoto(
+  file: File
+): Promise<{ bytes: Uint8Array; filename: string; mimeType: string }> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unsupported or corrupted image file'));
+    image.src = dataUrl;
+  });
+
+  const maxDim = 1500;
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const raw = new Uint8Array(await file.arrayBuffer());
+    return { bytes: raw, filename: file.name, mimeType: file.type || 'image/jpeg' };
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.88)
+  );
+  if (!blob) {
+    const raw = new Uint8Array(await file.arrayBuffer());
+    return { bytes: raw, filename: file.name, mimeType: file.type || 'image/jpeg' };
+  }
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const cleanName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+  return { bytes, filename: cleanName, mimeType: 'image/jpeg' };
+}
 
 export function isStandaloneFileMode(): boolean {
   return window.location.protocol === 'file:';
@@ -126,28 +181,36 @@ export async function uploadPdfFile(
   sizeBytes: number;
 }> {
   if (isStandaloneFileMode()) {
-    return standaloneApi.uploadPdf(filename, bytes);
+    const res = await standaloneApi.uploadPdf(filename, bytes);
+    SESSION_FILE_CACHE.set(res.fileId, bytes);
+    return res;
   }
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const slice = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...slice);
-  }
-  const base64Data = btoa(binary);
-  return request('/api/uploads/pdf', {
+  const base64Data = uint8ToBase64(bytes);
+  const res = await request<{
+    fileId: string;
+    filename: string;
+    pageCount: number;
+    sizeBytes: number;
+  }>('/api/uploads/pdf', {
     method: 'POST',
     body: JSON.stringify({ filename, base64Data }),
   });
+  SESSION_FILE_CACHE.set(res.fileId, bytes);
+  return res;
 }
 
 export async function getPdfBytes(fileId: string): Promise<Uint8Array | null> {
+  if (SESSION_FILE_CACHE.has(fileId)) {
+    return SESSION_FILE_CACHE.get(fileId)!;
+  }
   if (isStandaloneFileMode()) {
     return (await loadStandalonePdfBytes(fileId)) || (await ensureSampleStandalonePdf(fileId));
   }
   const res = await fetch(`/api/uploads/pdf/${fileId}`);
   if (!res.ok) return null;
-  return new Uint8Array(await res.arrayBuffer());
+  const arr = new Uint8Array(await res.arrayBuffer());
+  SESSION_FILE_CACHE.set(fileId, arr);
+  return arr;
 }
 
 export async function resolvePdfViewUrl(fileId: string): Promise<string | null> {
@@ -157,6 +220,64 @@ export async function resolvePdfViewUrl(fileId: string): Promise<string | null> 
   const bytes = await getPdfBytes(fileId);
   if (!bytes) return null;
   return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }));
+}
+
+export async function uploadImageFile(
+  filename: string,
+  bytes: Uint8Array,
+  side: 'front' | 'back',
+  mimeType = 'image/jpeg'
+): Promise<{
+  side: 'front' | 'back';
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}> {
+  if (isStandaloneFileMode()) {
+    const res = await standaloneApi.uploadImage(filename, bytes, side, mimeType);
+    SESSION_FILE_CACHE.set(res.fileId, bytes);
+    return res;
+  }
+  const base64Data = uint8ToBase64(bytes);
+  const res = await request<{
+    side: 'front' | 'back';
+    fileId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  }>('/api/uploads/image', {
+    method: 'POST',
+    body: JSON.stringify({ filename, base64Data, side }),
+  });
+  SESSION_FILE_CACHE.set(res.fileId, bytes);
+  return res;
+}
+
+export async function getImageBytes(fileId: string): Promise<Uint8Array | null> {
+  if (SESSION_FILE_CACHE.has(fileId)) {
+    return SESSION_FILE_CACHE.get(fileId)!;
+  }
+  if (isStandaloneFileMode()) {
+    return await loadStandalonePdfBytes(fileId);
+  }
+  const res = await fetch(`/api/uploads/image/${fileId}`);
+  if (!res.ok) return null;
+  const arr = new Uint8Array(await res.arrayBuffer());
+  SESSION_FILE_CACHE.set(fileId, arr);
+  return arr;
+}
+
+export async function resolveImageViewUrl(
+  fileId: string,
+  mimeType = 'image/jpeg'
+): Promise<string | null> {
+  if (!isStandaloneFileMode()) {
+    return `/api/uploads/image/${fileId}`;
+  }
+  const bytes = await getImageBytes(fileId);
+  if (!bytes) return null;
+  return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mimeType }));
 }
 
 export async function saveTutorApplication(

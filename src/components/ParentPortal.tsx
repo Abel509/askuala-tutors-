@@ -2,12 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  Camera,
+  Check,
   CheckCircle2,
+  Copy,
   Download,
   Lock,
   Maximize2,
   Printer,
   Send,
+  ShieldCheck,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -29,10 +34,18 @@ import type {
   ParentTutorPreference,
   PrivateCurriculum,
   SchoolType,
+  UploadedImageDoc,
   UserAccount,
 } from '../types/app';
-import { resolvePdfViewUrl, saveParentApplication, uploadPdfFile } from '../utils/api';
-import { buildParentAmharicPdf } from '../utils/pdfComposer';
+import {
+  optimizeNationalIdPhoto,
+  resolveImageViewUrl,
+  resolvePdfViewUrl,
+  saveParentApplication,
+  uploadImageFile,
+  uploadPdfFile,
+} from '../utils/api';
+import { buildParentAmharicPdf, type PreviewPageItem } from '../utils/pdfComposer';
 
 interface ParentPortalProps {
   user: UserAccount;
@@ -88,6 +101,17 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
     sex: existingApplication?.tutorPreference.sex || '',
     mode: existingApplication?.tutorPreference.mode || '',
   }));
+  const [nationalIdFront, setNationalIdFront] = useState<UploadedImageDoc | undefined>(
+    existingApplication?.nationalIdFront
+  );
+  const [nationalIdBack, setNationalIdBack] = useState<UploadedImageDoc | undefined>(
+    existingApplication?.nationalIdBack
+  );
+  const [nationalIdThumbUrls, setNationalIdThumbUrls] = useState<{
+    front?: string;
+    back?: string;
+  }>({});
+  const [uploadingIdSide, setUploadingIdSide] = useState<'front' | 'back' | null>(null);
 
   const [missingFields, setMissingFields] = useState<Set<string>>(new Set());
   const [missingMessages, setMissingMessages] = useState<string[]>([]);
@@ -97,7 +121,10 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
   const [previewPageUrls, setPreviewPageUrls] = useState<string[]>([]);
+  const [previewPages, setPreviewPages] = useState<PreviewPageItem[]>([]);
   const [fullScreenPdf, setFullScreenPdf] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+  const pageCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [agreements, setAgreements] = useState({
     accurate: false,
     phoneContact: false,
@@ -109,6 +136,26 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
       (existingApplication.status === 'submitted' || existingApplication.status === 'matched')
   );
   const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(isLockedSubmitted);
+
+  useEffect(() => {
+    if (nationalIdFront?.fileId && !nationalIdThumbUrls.front) {
+      resolveImageViewUrl(nationalIdFront.fileId, nationalIdFront.mimeType).then((url) => {
+        if (url) setNationalIdThumbUrls((prev) => ({ ...prev, front: url }));
+      });
+    }
+    if (nationalIdBack?.fileId && !nationalIdThumbUrls.back) {
+      resolveImageViewUrl(nationalIdBack.fileId, nationalIdBack.mimeType).then((url) => {
+        if (url) setNationalIdThumbUrls((prev) => ({ ...prev, back: url }));
+      });
+    }
+  }, [
+    nationalIdFront?.fileId,
+    nationalIdFront?.mimeType,
+    nationalIdBack?.fileId,
+    nationalIdBack?.mimeType,
+    nationalIdThumbUrls.front,
+    nationalIdThumbUrls.back,
+  ]);
 
   useEffect(() => {
     if (isLockedSubmitted) {
@@ -208,6 +255,14 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
       fields.add('expectedPaymentPerHour');
       messages.push('በሰዓት የሚከፍሉትን ክፍያ መጠን ይምረጡ።');
     }
+    if (!nationalIdFront) {
+      fields.add('id_front');
+      messages.push('እባክዎ የብሔራዊ መታወቂያዎን የፊት ገጽ ፎቶ ይጫኑ።');
+    }
+    if (!nationalIdBack) {
+      fields.add('id_back');
+      messages.push('እባክዎ የብሔራዊ መታወቂያዎን የጀርባ ገጽ ፎቶ ይጫኑ።');
+    }
     return { fields, messages };
   };
 
@@ -283,21 +338,61 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
     setStepError(null);
   };
 
+  const handleNationalIdUpload = async (side: 'front' | 'back', file: File | null) => {
+    if (!file) return;
+    setStepError(null);
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) {
+      setStepError('እባክዎ ግልጽ የሆነ የብሔራዊ መታወቂያ ፎቶ (JPG ወይም PNG) ይምረጡ።');
+      return;
+    }
+    setUploadingIdSide(side);
+    try {
+      const opt = await optimizeNationalIdPhoto(file);
+      const uploaded = await uploadImageFile(opt.filename, opt.bytes, side, opt.mimeType);
+      const entry: UploadedImageDoc = {
+        side,
+        fileId: uploaded.fileId,
+        filename: uploaded.filename,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
+      };
+      const thumbUrl = URL.createObjectURL(
+        new Blob([new Uint8Array(opt.bytes)], { type: opt.mimeType })
+      );
+      if (side === 'front') {
+        setNationalIdFront(entry);
+        setNationalIdThumbUrls((prev) => ({ ...prev, front: thumbUrl }));
+        clearFieldError('id_front');
+      } else {
+        setNationalIdBack(entry);
+        setNationalIdThumbUrls((prev) => ({ ...prev, back: thumbUrl }));
+        clearFieldError('id_back');
+      }
+    } catch (e) {
+      setStepError(e instanceof Error ? e.message : 'የመታወቂያ ፎቶውን መጫን አልተቻለም።');
+    } finally {
+      setUploadingIdSide(null);
+    }
+  };
+
   const generateAmharicPdf = async () => {
     setBuildingPdf(true);
     setStepError(null);
     try {
-      const { pdfBytes, previewPageUrls: pages } = await buildParentAmharicPdf({
+      const { pdfBytes, previewPageUrls: urls, previewPages: items } = await buildParentAmharicPdf({
         parentProfile,
         kidsCountChoice,
         kidsCountNumber,
         kids,
         tutorPreference,
+        nationalIdFront,
+        nationalIdBack,
       });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       setPreviewPdfBytes(pdfBytes);
-      setPreviewPageUrls(pages);
+      setPreviewPageUrls(urls);
+      setPreviewPages(items);
       setPreviewPdfUrl(URL.createObjectURL(blob));
     } catch (e) {
       setStepError(e instanceof Error ? e.message : 'PDF ማዘጋጀት አልተቻለም።');
@@ -324,6 +419,8 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
           kidsCountNumber,
           kids,
           tutorPreference,
+          nationalIdFront,
+          nationalIdBack,
           submit: false,
         });
         onApplicationUpdated(res.application);
@@ -350,6 +447,8 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
           kidsCountNumber,
           kids,
           tutorPreference,
+          nationalIdFront,
+          nationalIdBack,
           submit: false,
         });
         onApplicationUpdated(res.application);
@@ -431,6 +530,8 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
         kidsCountNumber,
         kids,
         tutorPreference,
+        nationalIdFront,
+        nationalIdBack,
         summaryPdfFileId,
         summaryPdfFilename,
         agreedToTerms: true,
@@ -564,12 +665,35 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                 </p>
               </div>
 
-              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-1.5">
+              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-2">
                 {existingApplication?.id && (
-                  <p className="font-bold tabular-nums">
-                    የማመልከቻ መለያ ቁጥር፡{' '}
-                    <span className="underline">{existingApplication.id}</span>
-                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <p className="font-bold tabular-nums">
+                      የማመልከቻ መለያ ቁጥር፡{' '}
+                      <span className="underline">{existingApplication.id}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(existingApplication.id).catch(() => {});
+                        setCopiedRef(true);
+                        window.setTimeout(() => setCopiedRef(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#14532d] text-xs font-bold text-[#14532d] hover:bg-[#dcfce7] cursor-pointer"
+                    >
+                      {copiedRef ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#16a34a]" aria-hidden="true" />
+                          <span>ተቀድቷል</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>መለያ ቁጥሩን ቅዳ</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
                 <p className="font-semibold flex items-center justify-center gap-1.5 text-[#15803d]">
                   <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -745,6 +869,143 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                       })}
                     </div>
                   </fieldset>
+
+                  {/* የወላጅ ብሔራዊ መታወቂያ ፎቶ (የፊት እና የጀርባ ገጽ) */}
+                  <div className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#14532d] space-y-4">
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck
+                        className="w-6 h-6 text-[#14532d] shrink-0 mt-0.5"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <h3 className="text-base sm:text-lg font-bold text-[#14532d]">
+                          የብሔራዊ መታወቂያ ፎቶ (የፊት እና የጀርባ ገጽ) *
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#475569] mt-0.5">
+                          ለደህንነት እና ለማረጋገጫ የፋይዳ / የቀበሌ ብሔራዊ መታወቂያዎን <strong>የፊት እና የጀርባ ገጽ</strong>{' '}
+                          ግልጽ ፎቶ አንስተው ይጫኑ። ሁለቱም ገጾች በማመልከቻ PDFዎ ላይ ይካተታሉ።
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(
+                        [
+                          {
+                            side: 'front' as const,
+                            title: 'የብሔራዊ መታወቂያ — የፊት ገጽ *',
+                            errKey: 'id_front',
+                            doc: nationalIdFront,
+                            thumb: nationalIdThumbUrls.front,
+                            uploadLabel: 'የፊት ገጽ ፎቶ ጫን',
+                            replaceLabel: 'የፊት ገጽ ቀይር',
+                          },
+                          {
+                            side: 'back' as const,
+                            title: 'የብሔራዊ መታወቂያ — የጀርባ ገጽ *',
+                            errKey: 'id_back',
+                            doc: nationalIdBack,
+                            thumb: nationalIdThumbUrls.back,
+                            uploadLabel: 'የጀርባ ገጽ ፎቶ ጫን',
+                            replaceLabel: 'የጀርባ ገጽ ቀይር',
+                          },
+                        ] as const
+                      ).map((card) => {
+                        const flagged = isErr(card.errKey);
+                        const isUploading = uploadingIdSide === card.side;
+                        return (
+                          <div
+                            key={card.side}
+                            data-field-error={flagged ? 'true' : undefined}
+                            className={`p-4 rounded-xl bg-white border-2 flex flex-col justify-between gap-3 ${
+                              flagged ? 'field-error' : 'border-[#22c55e]'
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-bold text-sm text-[#14532d]">{card.title}</p>
+                                {card.doc && (
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[#dcfce7] text-[#14532d]">
+                                    ተያይዟል ✓
+                                  </span>
+                                )}
+                              </div>
+
+                              {card.thumb ? (
+                                <div className="rounded-lg overflow-hidden border border-[#bbf7d0] bg-[#f8fafc]">
+                                  <img
+                                    src={card.thumb}
+                                    alt={card.title}
+                                    className="w-full h-40 object-contain block mx-auto"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-36 rounded-lg border-2 border-dashed border-[#bbf7d0] bg-[#f0fdf4] flex flex-col items-center justify-center text-center px-3 text-xs text-[#475569]">
+                                  <Camera
+                                    className="w-6 h-6 text-[#15803d] mb-1.5"
+                                    aria-hidden="true"
+                                  />
+                                  <span>እስካሁን ፎቶ አልተጫነም</span>
+                                </div>
+                              )}
+
+                              {card.doc && (
+                                <p className="text-xs text-[#15803d] font-semibold truncate">
+                                  {card.doc.filename} ({Math.round(card.doc.sizeBytes / 1024)} KB)
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <label className="flex-1 min-h-[40px] px-3.5 py-2 rounded-xl bg-[#14532d] text-white text-xs sm:text-sm font-bold hover:bg-[#166534] inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                <Camera className="w-4 h-4" aria-hidden="true" />
+                                <span>
+                                  {isUploading
+                                    ? 'በመጫን ላይ...'
+                                    : card.doc
+                                    ? card.replaceLabel
+                                    : card.uploadLabel}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="sr-only"
+                                  onChange={(e) =>
+                                    handleNationalIdUpload(card.side, e.target.files?.[0] || null)
+                                  }
+                                />
+                              </label>
+
+                              {card.doc && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (card.side === 'front') {
+                                      setNationalIdFront(undefined);
+                                      setNationalIdThumbUrls((prev) => ({
+                                        ...prev,
+                                        front: undefined,
+                                      }));
+                                    } else {
+                                      setNationalIdBack(undefined);
+                                      setNationalIdThumbUrls((prev) => ({
+                                        ...prev,
+                                        back: undefined,
+                                      }));
+                                    }
+                                  }}
+                                  aria-label={`${card.title} አጥፋ`}
+                                  className="min-h-[40px] px-3 py-2 rounded-xl border border-[#fca5a5] bg-white text-[#dc2626] hover:bg-[#fef2f2] cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1344,30 +1605,74 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {previewPageUrls.length > 0 && (
+                      {(previewPages.length > 0 || previewPageUrls.length > 0) && (
                         <div className="space-y-4">
-                          {previewPageUrls.map((src, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
-                            >
-                              <img
-                                src={src}
-                                alt={`የወላጅ ማመልከቻ ገጽ ${idx + 1}`}
-                                className="w-full h-auto block"
-                              />
+                          {previewPages.length > 0 && (
+                            <div className="p-3.5 rounded-xl bg-[#f0fdf4] border border-[#22c55e] space-y-2 no-print">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-sm font-bold text-[#14532d]">
+                                  የወላጅ ማመልከቻ ገጾች ({previewPages.length} የሚታዩ ገጾች)
+                                </h3>
+                                <span className="text-xs text-[#15803d] font-semibold">
+                                  በቀጥታ ለመሄድ ገጹን ይጫኑ
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {previewPages.map((pg, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() =>
+                                      pageCardRefs.current[idx]?.scrollIntoView({
+                                        behavior: 'smooth',
+                                        block: 'start',
+                                      })
+                                    }
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer transition-colors ${
+                                      pg.kind === 'national_id'
+                                        ? 'bg-[#14532d] text-white border-[#14532d]'
+                                        : 'bg-[#dcfce7] text-[#14532d] border-[#22c55e] hover:bg-[#bbf7d0]'
+                                    }`}
+                                  >
+                                    ገጽ {idx + 1}:{' '}
+                                    {pg.kind === 'national_id' ? 'ብሔራዊ መታወቂያ' : 'ማጠቃለያ'}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          )}
 
-                      {previewPdfUrl && (
-                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc] no-print">
-                          <iframe
-                            src={previewPdfUrl}
-                            title="የወላጅ ማመልከቻ PDF ቅድመ እይታ"
-                            className="w-full h-[500px]"
-                          />
+                          <div className="space-y-5">
+                            {(previewPages.length > 0
+                              ? previewPages
+                              : previewPageUrls.map((url, i) => ({
+                                  url,
+                                  caption: `የወላጅ ማመልከቻ ገጽ ${i + 1}`,
+                                  kind: 'summary' as const,
+                                }))
+                            ).map((pg, idx, arr) => (
+                              <div
+                                key={idx}
+                                ref={(el) => {
+                                  pageCardRefs.current[idx] = el;
+                                }}
+                                className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
+                              >
+                                <div className="px-4 py-2.5 bg-[#f0fdf4] border-b border-[#bbf7d0] flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#14532d]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded bg-[#14532d] text-white text-[10px]">
+                                      {pg.kind === 'national_id' ? 'ብሔራዊ መታወቂያ' : 'ማጠቃለያ'}
+                                    </span>
+                                    <span>{pg.caption}</span>
+                                  </div>
+                                  <span className="tabular-nums">
+                                    ገጽ {idx + 1} / {arr.length}
+                                  </span>
+                                </div>
+                                <img src={pg.url} alt={pg.caption} className="w-full h-auto block" />
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 

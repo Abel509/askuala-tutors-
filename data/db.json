@@ -35,15 +35,6 @@
       "passwordSalt": "f5f2b6802dd98ca98139303de183d5a1",
       "passwordHash": "334a11dd6d5aba20e79928be52adfd1a25846f0afd2b431c7c0fee553e11faf68f09c45c1a8bd3e4f0dbc312e0d8cfc145e64725a9c769897a5674665cdd478a",
       "createdAt": "2026-11-19T06:50:56.423Z"
-    },
-    {
-      "id": "user_8b96cfee-3",
-      "phone": "+251936461062",
-      "role": "tutor",
-      "fullName": "Test Tutor",
-      "passwordSalt": "9452464839e06f7936b2aec420364b74",
-      "passwordHash": "c16357fe31703a784ab2f84c3387edcb1c256c61f5efaf16691a7e2a8f2f036dcb6897bd9cfd1a97521ebbdadd78cef9d9837e52d90d40fec5d5398175a87908",
-      "createdAt": "2026-11-19T14:28:31.629Z"
     }
   ],
   "sessions": [
@@ -76,11 +67,6 @@
       "token": "201dba22714b2672c38053e487a9d74c7d7e21a384b18805",
       "userId": "user_admin_1",
       "createdAt": "2026-11-19T09:35:29.425Z"
-    },
-    {
-      "token": "e19752a6b4d39723f419ce690eac20fb2eb401f05ef7d940",
-      "userId": "user_8b96cfee-3",
-      "createdAt": "2026-11-19T14:28:31.630Z"
     }
   ],
   "tutorApplications": [
@@ -216,43 +202,6 @@
       "mergedPdfFilename": "Mekdes_Alemu_Askuala_Application.pdf",
       "submittedAt": "2026-11-19T06:50:56.423Z",
       "updatedAt": "2026-11-19T06:50:56.423Z"
-    },
-    {
-      "id": "tapp_cbd598aa",
-      "userId": "user_8b96cfee-3",
-      "status": "submitted",
-      "profile": {
-        "fullName": "Test Tutor",
-        "phone": "+251936461062",
-        "sex": "male",
-        "educationLevel": "grade_12",
-        "tutoringMode": "both",
-        "priorExperience": "1_year",
-        "preferredLocations": [
-          "4_kilo"
-        ],
-        "preferredSubjects": [
-          "mathematics"
-        ],
-        "preferredDays": [
-          "monday"
-        ],
-        "weekdaySlots": [
-          "wd_10_11"
-        ],
-        "weekendSlots": [],
-        "expectedFeePerHour": "400_600"
-      },
-      "academicRecords": {
-        "grade9Avg": "90",
-        "grade10Avg": "91",
-        "grade11Avg": "92"
-      },
-      "uploadedDocuments": [],
-      "agreedToTerms": true,
-      "agreedAt": "2026-11-19T14:28:31.679Z",
-      "submittedAt": "2026-11-19T14:28:31.679Z",
-      "updatedAt": "2026-11-19T14:28:31.679Z"
     }
   ],
   "parentApplications": [
@@ -364,6 +313,30 @@
       ],
       "status": "suggested",
       "updatedAt": "2026-11-19T06:50:56.672Z"
+    },
+    {
+      "id": "match_5a3f1c07",
+      "parentAppId": "papp_32e8d5d7",
+      "tutorAppId": "tapp_b539a8ef",
+      "parentName": "ወላጅ ሙከራ",
+      "parentPhone": "+251923376826",
+      "parentLocation": "bole",
+      "parentBudget": "400_500",
+      "tutorName": "Test Tutor",
+      "tutorPhone": "+251913376826",
+      "tutorEducation": "grade_11",
+      "tutorFee": "400_600",
+      "tutorMode": "in_person",
+      "compatibilityScore": 60,
+      "matchedSubjects": [
+        "math"
+      ],
+      "matchedLocations": [
+        "bole"
+      ],
+      "matchedSchedule": [],
+      "status": "suggested",
+      "updatedAt": "2026-11-22T18:49:37.156Z"
     },
     {
       "id": "match_0159b7bd",

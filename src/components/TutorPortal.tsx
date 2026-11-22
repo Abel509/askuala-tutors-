@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  Camera,
+  Check,
   CheckCircle2,
+  Copy,
   Download,
   FileText,
   FileUp,
@@ -11,6 +14,7 @@ import {
   Printer,
   Search,
   Send,
+  ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react';
@@ -34,10 +38,18 @@ import type {
   TutorApplication,
   TutoringMode,
   TutorProfileData,
+  UploadedImageDoc,
   UploadedPdfDoc,
   UserAccount,
 } from '../types/app';
-import { resolvePdfViewUrl, saveTutorApplication, uploadPdfFile } from '../utils/api';
+import {
+  optimizeNationalIdPhoto,
+  resolveImageViewUrl,
+  resolvePdfViewUrl,
+  saveTutorApplication,
+  uploadImageFile,
+  uploadPdfFile,
+} from '../utils/api';
 import { buildTutorUnifiedPdf, type PreviewPageItem } from '../utils/pdfComposer';
 
 interface TutorPortalProps {
@@ -86,6 +98,17 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedPdfDoc[]>(
     existingApplication?.uploadedDocuments || []
   );
+  const [nationalIdFront, setNationalIdFront] = useState<UploadedImageDoc | undefined>(
+    existingApplication?.nationalIdFront
+  );
+  const [nationalIdBack, setNationalIdBack] = useState<UploadedImageDoc | undefined>(
+    existingApplication?.nationalIdBack
+  );
+  const [nationalIdThumbUrls, setNationalIdThumbUrls] = useState<{
+    front?: string;
+    back?: string;
+  }>({});
+  const [uploadingIdSide, setUploadingIdSide] = useState<'front' | 'back' | null>(null);
 
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<Set<string>>(new Set());
@@ -99,6 +122,8 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
   const [previewPagesCount, setPreviewPagesCount] = useState<number>(0);
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [fullScreenPdf, setFullScreenPdf] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+  const pageCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [agreements, setAgreements] = useState({
     accurate: false,
     phoneContact: false,
@@ -110,6 +135,26 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       (existingApplication.status === 'submitted' || existingApplication.status === 'verified')
   );
   const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(isLockedSubmitted);
+
+  useEffect(() => {
+    if (nationalIdFront?.fileId && !nationalIdThumbUrls.front) {
+      resolveImageViewUrl(nationalIdFront.fileId, nationalIdFront.mimeType).then((url) => {
+        if (url) setNationalIdThumbUrls((prev) => ({ ...prev, front: url }));
+      });
+    }
+    if (nationalIdBack?.fileId && !nationalIdThumbUrls.back) {
+      resolveImageViewUrl(nationalIdBack.fileId, nationalIdBack.mimeType).then((url) => {
+        if (url) setNationalIdThumbUrls((prev) => ({ ...prev, back: url }));
+      });
+    }
+  }, [
+    nationalIdFront?.fileId,
+    nationalIdFront?.mimeType,
+    nationalIdBack?.fileId,
+    nationalIdBack?.mimeType,
+    nationalIdThumbUrls.front,
+    nationalIdThumbUrls.back,
+  ]);
 
   useEffect(() => {
     if (isLockedSubmitted) {
@@ -322,6 +367,15 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     const fields = new Set<string>();
     const messages: string[] = [];
 
+    if (!nationalIdFront) {
+      fields.add('id_front');
+      messages.push('Upload a clear photo of the FRONT side of your National ID.');
+    }
+    if (!nationalIdBack) {
+      fields.add('id_back');
+      messages.push('Upload a clear photo of the BACK side of your National ID.');
+    }
+
     for (const docSpec of requiredDocs) {
       const found = uploadedDocuments.find((u) => u.recordKey === docSpec.recordKey);
       if (!found) {
@@ -355,6 +409,8 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
           profile,
           academicRecords,
           uploadedDocuments,
+          nationalIdFront,
+          nationalIdBack,
           submit: false,
         });
         onApplicationUpdated(res.application);
@@ -379,6 +435,8 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
           profile,
           academicRecords,
           uploadedDocuments,
+          nationalIdFront,
+          nationalIdBack,
           submit: false,
         });
         onApplicationUpdated(res.application);
@@ -396,6 +454,22 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
         setMissingMessages(messages);
         scrollToTopOrFirstError(true);
         return;
+      }
+      setSaving(true);
+      try {
+        const res = await saveTutorApplication({
+          profile,
+          academicRecords,
+          uploadedDocuments,
+          nationalIdFront,
+          nationalIdBack,
+          submit: false,
+        });
+        onApplicationUpdated(res.application);
+      } catch {
+        // Non-blocking draft save; continue to PDF preview
+      } finally {
+        setSaving(false);
       }
       setStep(4);
       scrollToTopOrFirstError(false);
@@ -444,6 +518,43 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     }
   };
 
+  const handleNationalIdUpload = async (side: 'front' | 'back', file: File | null) => {
+    if (!file) return;
+    setStepError(null);
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) {
+      setStepError('Please upload a clear photo image (JPG, PNG, or WebP) of your National ID.');
+      return;
+    }
+    setUploadingIdSide(side);
+    try {
+      const opt = await optimizeNationalIdPhoto(file);
+      const uploaded = await uploadImageFile(opt.filename, opt.bytes, side, opt.mimeType);
+      const entry: UploadedImageDoc = {
+        side,
+        fileId: uploaded.fileId,
+        filename: uploaded.filename,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
+      };
+      const thumbUrl = URL.createObjectURL(
+        new Blob([new Uint8Array(opt.bytes)], { type: opt.mimeType })
+      );
+      if (side === 'front') {
+        setNationalIdFront(entry);
+        setNationalIdThumbUrls((prev) => ({ ...prev, front: thumbUrl }));
+        clearFieldError('id_front');
+      } else {
+        setNationalIdBack(entry);
+        setNationalIdThumbUrls((prev) => ({ ...prev, back: thumbUrl }));
+        clearFieldError('id_back');
+      }
+    } catch (e) {
+      setStepError(e instanceof Error ? e.message : 'Failed to upload National ID photo.');
+    } finally {
+      setUploadingIdSide(null);
+    }
+  };
+
   const generateCombinedPdfPreview = async () => {
     setBuildingPdf(true);
     setStepError(null);
@@ -451,7 +562,9 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       const { pdfBytes, totalPages, previewPages: pages } = await buildTutorUnifiedPdf(
         profile,
         academicRecords,
-        uploadedDocuments
+        uploadedDocuments,
+        nationalIdFront,
+        nationalIdBack
       );
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
@@ -510,6 +623,8 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
         profile,
         academicRecords,
         uploadedDocuments,
+        nationalIdFront,
+        nationalIdBack,
         mergedPdfFileId: mergedFileId,
         mergedPdfFilename: mergedFilename,
         agreedToTerms: true,
@@ -643,11 +758,35 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                 </p>
               </div>
 
-              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-1.5">
+              <div className="max-w-lg mx-auto p-4 rounded-xl bg-[#f0fdf4] border-2 border-[#22c55e] text-sm text-[#14532d] space-y-2">
                 {existingApplication?.id && (
-                  <p className="font-bold tabular-nums">
-                    Application Reference ID: <span className="underline">{existingApplication.id}</span>
-                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <p className="font-bold tabular-nums">
+                      Application Reference ID:{' '}
+                      <span className="underline">{existingApplication.id}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(existingApplication.id).catch(() => {});
+                        setCopiedRef(true);
+                        window.setTimeout(() => setCopiedRef(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#14532d] text-xs font-bold text-[#14532d] hover:bg-[#dcfce7] cursor-pointer"
+                    >
+                      {copiedRef ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#16a34a]" aria-hidden="true" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Copy ID</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
                 <p className="font-semibold flex items-center justify-center gap-1.5 text-[#15803d]">
                   <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -1271,17 +1410,153 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
               )}
 
               {step === 3 && (
-                <div className="space-y-5">
-                  <div className="instruction-box">
-                    <span>📎</span>
-                    <span>
-                      Instruction: Upload official PDF documents for every record listed in Section
-                      2. Only .pdf files are accepted, and every visible page will be included
-                      inside your Review Application PDF in Section 4.
-                    </span>
+                <div className="space-y-6">
+                  {/* National ID Front & Back Upload Section */}
+                  <div className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#14532d] space-y-4">
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck
+                        className="w-6 h-6 text-[#14532d] shrink-0 mt-0.5"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <h3 className="text-lg font-bold text-[#14532d]">
+                          1. National ID Photos (Front &amp; Back Sides) *
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#475569] mt-0.5">
+                          Upload crisp photos of <strong>both sides</strong> of your Ethiopian
+                          National ID (Fayda / Kebele ID). Both sides will appear together on the
+                          National ID Verification page inside your application PDF.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(
+                        [
+                          {
+                            side: 'front' as const,
+                            title: 'National ID — Front Side *',
+                            errKey: 'id_front',
+                            doc: nationalIdFront,
+                            thumb: nationalIdThumbUrls.front,
+                          },
+                          {
+                            side: 'back' as const,
+                            title: 'National ID — Back Side *',
+                            errKey: 'id_back',
+                            doc: nationalIdBack,
+                            thumb: nationalIdThumbUrls.back,
+                          },
+                        ] as const
+                      ).map((card) => {
+                        const flagged = isErr(card.errKey);
+                        const isUploading = uploadingIdSide === card.side;
+                        return (
+                          <div
+                            key={card.side}
+                            data-field-error={flagged ? 'true' : undefined}
+                            className={`p-4 rounded-xl bg-white border-2 flex flex-col justify-between gap-3 ${
+                              flagged ? 'field-error' : 'border-[#22c55e]'
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-bold text-sm text-[#14532d]">{card.title}</p>
+                                {card.doc && (
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[#dcfce7] text-[#14532d]">
+                                    Attached ✓
+                                  </span>
+                                )}
+                              </div>
+
+                              {card.thumb ? (
+                                <div className="rounded-lg overflow-hidden border border-[#bbf7d0] bg-[#f8fafc]">
+                                  <img
+                                    src={card.thumb}
+                                    alt={card.title}
+                                    className="w-full h-40 object-contain block mx-auto"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-36 rounded-lg border-2 border-dashed border-[#bbf7d0] bg-[#f0fdf4] flex flex-col items-center justify-center text-center px-3 text-xs text-[#475569]">
+                                  <Camera
+                                    className="w-6 h-6 text-[#15803d] mb-1.5"
+                                    aria-hidden="true"
+                                  />
+                                  <span>No photo uploaded yet</span>
+                                </div>
+                              )}
+
+                              {card.doc && (
+                                <p className="text-xs text-[#15803d] font-semibold truncate">
+                                  {card.doc.filename} ({Math.round(card.doc.sizeBytes / 1024)} KB)
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <label className="flex-1 min-h-[40px] px-3.5 py-2 rounded-xl bg-[#14532d] text-white text-xs sm:text-sm font-bold hover:bg-[#166534] inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                <Camera className="w-4 h-4" aria-hidden="true" />
+                                <span>
+                                  {isUploading
+                                    ? 'Uploading...'
+                                    : card.doc
+                                    ? `Replace ${card.side === 'front' ? 'Front' : 'Back'}`
+                                    : `Upload ${card.side === 'front' ? 'Front' : 'Back'} Photo`}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="sr-only"
+                                  onChange={(e) =>
+                                    handleNationalIdUpload(card.side, e.target.files?.[0] || null)
+                                  }
+                                />
+                              </label>
+
+                              {card.doc && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (card.side === 'front') {
+                                      setNationalIdFront(undefined);
+                                      setNationalIdThumbUrls((prev) => ({
+                                        ...prev,
+                                        front: undefined,
+                                      }));
+                                    } else {
+                                      setNationalIdBack(undefined);
+                                      setNationalIdThumbUrls((prev) => ({
+                                        ...prev,
+                                        back: undefined,
+                                      }));
+                                    }
+                                  }}
+                                  aria-label={`Remove ${card.title}`}
+                                  className="min-h-[40px] px-3 py-2 rounded-xl border border-[#fca5a5] bg-white text-[#dc2626] hover:bg-[#fef2f2] cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
+                  {/* Academic PDF Documents Section */}
                   <div className="space-y-3">
+                    <div className="instruction-box">
+                      <span>📎</span>
+                      <span>
+                        2. Academic PDF Uploads: Upload official .pdf documents for every academic
+                        record listed in Section 2. Just like Common App PDFs, every single page of
+                        each uploaded PDF will render visibly page-by-page inside Section 4 and your
+                        final PDF.
+                      </span>
+                    </div>
+
                     {requiredDocs.map((docSpec) => {
                       const existing = uploadedDocuments.find(
                         (d) => d.recordKey === docSpec.recordKey
@@ -1361,9 +1636,10 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                   <div className="instruction-box no-print">
                     <span>📄</span>
                     <span>
-                      Instruction: Review your unified {previewPagesCount}-page Application PDF
-                      below (your entered details + all visible pages of your uploaded PDFs),
-                      download a copy, and click Submit Application.
+                      Instruction: Review every page of your unified {previewPagesCount}-page
+                      Common-App style Application PDF below (Profile Summary, National ID Front
+                      &amp; Back, and every individual page of your uploaded PDFs), download your
+                      copy, and check all 4 mandatory agreements before submitting.
                     </span>
                   </div>
 
@@ -1401,26 +1677,74 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                   {buildingPdf ? (
                     <div className="p-12 text-center bg-[#f0fdf4] rounded-xl border border-[#bbf7d0]">
                       <p className="font-bold text-[#14532d]">
-                        Building unified PDF with all visible uploaded documents...
+                        Building unified Common-App style PDF (Summary + National ID + Every
+                        Uploaded PDF Page)...
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {previewPages.length > 0 && (
                         <div className="space-y-4">
-                          <h3 className="text-sm font-bold uppercase tracking-wider text-[#15803d]">
-                            Unified Application Pages &mdash; Summary &amp; Embedded Uploaded PDFs (
-                            {previewPages.length} visible pages)
-                          </h3>
-                          <div className="space-y-4">
+                          <div className="p-3.5 rounded-xl bg-[#f0fdf4] border border-[#22c55e] space-y-2 no-print">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-sm font-bold uppercase tracking-wider text-[#14532d]">
+                                Application Dossier Pages ({previewPages.length} Visible Pages)
+                              </h3>
+                              <span className="text-xs text-[#15803d] font-semibold">
+                                Click any page below to jump directly to it
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {previewPages.map((pg, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() =>
+                                    pageCardRefs.current[idx]?.scrollIntoView({
+                                      behavior: 'smooth',
+                                      block: 'start',
+                                    })
+                                  }
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer transition-colors ${
+                                    pg.kind === 'national_id'
+                                      ? 'bg-[#14532d] text-white border-[#14532d]'
+                                      : pg.kind === 'document'
+                                      ? 'bg-white text-[#14532d] border-[#16a34a] hover:bg-[#dcfce7]'
+                                      : 'bg-[#dcfce7] text-[#14532d] border-[#22c55e] hover:bg-[#bbf7d0]'
+                                  }`}
+                                >
+                                  P.{idx + 1}:{' '}
+                                  {pg.kind === 'summary'
+                                    ? 'Summary'
+                                    : pg.kind === 'national_id'
+                                    ? 'National ID'
+                                    : pg.caption.slice(0, 22)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-5">
                             {previewPages.map((pg, idx) => (
                               <div
                                 key={idx}
+                                ref={(el) => {
+                                  pageCardRefs.current[idx] = el;
+                                }}
                                 className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
                               >
-                                <div className="px-4 py-2 bg-[#f0fdf4] border-b border-[#bbf7d0] flex items-center justify-between text-xs font-bold text-[#14532d]">
-                                  <span>{pg.caption}</span>
-                                  <span>
+                                <div className="px-4 py-2.5 bg-[#f0fdf4] border-b border-[#bbf7d0] flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#14532d]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded bg-[#14532d] text-white text-[10px] uppercase">
+                                      {pg.kind === 'summary'
+                                        ? 'Summary'
+                                        : pg.kind === 'national_id'
+                                        ? 'National ID'
+                                        : 'Attached PDF'}
+                                    </span>
+                                    <span>{pg.caption}</span>
+                                  </div>
+                                  <span className="tabular-nums">
                                     Page {idx + 1} of {previewPages.length}
                                   </span>
                                 </div>
@@ -1432,20 +1756,6 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
-
-                      {previewPdfUrl && (
-                        <div className="rounded-xl overflow-hidden border-2 border-[#22c55e] bg-[#f8fafc] no-print">
-                          <div className="px-4 py-2 bg-[#14532d] text-white text-xs font-bold flex items-center justify-between">
-                            <span>Unified PDF File Preview ({previewPagesCount} total pages)</span>
-                            <span>Download Full PDF above to save a permanent copy</span>
-                          </div>
-                          <iframe
-                            src={previewPdfUrl}
-                            title="Combined Tutor Application PDF Preview"
-                            className="w-full h-[520px]"
-                          />
                         </div>
                       )}
 

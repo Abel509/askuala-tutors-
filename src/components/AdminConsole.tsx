@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
+  Check,
   CheckCircle2,
+  Copy,
   Download,
   Eye,
   EyeOff,
@@ -89,8 +91,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const [inspectPdfTitle, setInspectPdfTitle] = useState<string>('');
   const [inspectPdfPages, setInspectPdfPages] = useState<PreviewPageItem[]>([]);
   const [loadingPdfPages, setLoadingPdfPages] = useState(false);
+  const [copiedPhoneKey, setCopiedPhoneKey] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string>('');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('');
+
+  const handleCopyPhone = (key: string, phone: string) => {
+    navigator.clipboard?.writeText(phone).catch(() => {});
+    setCopiedPhoneKey(key);
+    window.setTimeout(() => setCopiedPhoneKey(null), 2000);
+  };
 
   const openPdfInspector = async (fileId: string, title: string) => {
     const url = await resolvePdfViewUrl(fileId);
@@ -522,10 +531,37 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                                 <span className="tabular-nums text-[#475569]">
                                   {t.profile.phone}
                                 </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPhone(`tutor_${t.id}`, t.profile.phone)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#f0fdf4] border border-[#bbf7d0] text-[11px] font-bold text-[#14532d] hover:bg-[#dcfce7] cursor-pointer"
+                                  title="Copy tutor phone number"
+                                >
+                                  {copiedPhoneKey === `tutor_${t.id}` ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-[#16a34a]" aria-hidden="true" />
+                                      <span>Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" aria-hidden="true" />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
                                 <span aria-hidden="true">&middot;</span>
                                 <span className="font-bold uppercase text-xs px-2 py-0.5 rounded bg-[#f0fdf4] border border-[#22c55e] text-[#14532d]">
                                   {t.status}
                                 </span>
+                                {t.nationalIdFront && t.nationalIdBack ? (
+                                  <span className="font-bold text-xs px-2 py-0.5 rounded bg-[#dcfce7] border border-[#16a34a] text-[#14532d]">
+                                    ID Front &amp; Back ✓
+                                  </span>
+                                ) : (
+                                  <span className="font-bold text-xs px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800">
+                                    No ID Photos
+                                  </span>
+                                )}
                               </div>
                               <p className="text-sm text-[#0f172a]">
                                 {EDUCATION_LEVEL_LABELS[t.profile.educationLevel]} &middot;{' '}
@@ -604,14 +640,44 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                               <span className="text-sm tabular-nums text-[#475569]">
                                 {p.parentProfile.phone}
                               </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopyPhone(`parent_${p.id}`, p.parentProfile.phone)
+                                }
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#f0fdf4] border border-[#bbf7d0] text-[11px] font-bold text-[#14532d] hover:bg-[#dcfce7] cursor-pointer"
+                                title="Copy parent phone number"
+                              >
+                                {copiedPhoneKey === `parent_${p.id}` ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-[#16a34a]" aria-hidden="true" />
+                                    <span>Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3" aria-hidden="true" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
                               <span aria-hidden="true">&middot;</span>
                               <span className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-[#f0fdf4] border border-[#22c55e] text-[#14532d]">
                                 {p.status}
                               </span>
+                              {p.nationalIdFront && p.nationalIdBack ? (
+                                <span className="font-bold text-xs px-2 py-0.5 rounded bg-[#dcfce7] border border-[#16a34a] text-[#14532d]">
+                                  ID Front &amp; Back ✓
+                                </span>
+                              ) : (
+                                <span className="font-bold text-xs px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800">
+                                  No ID Photos
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-[#0f172a]">
                               Location: {lookupLoc(p.parentProfile.location)} &middot; Kids:{' '}
                               {p.kids.length} &middot; Preferred Mode: {p.tutorPreference.mode}
+                              {p.agreedToTerms ? ' · Agreed Terms ✓' : ''}
                             </p>
                           </div>
                           {p.summaryPdfFileId && (
@@ -899,12 +965,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                 Rendering all embedded PDF pages...
               </div>
             ) : inspectPdfPages.length > 0 ? (
-              <div className="max-w-4xl mx-auto space-y-4">
+              <div className="max-w-4xl mx-auto space-y-5">
                 {inspectPdfPages.map((pg, idx) => (
                   <div
                     key={idx}
                     className="rounded-xl overflow-hidden border-2 border-[#14532d] shadow-md bg-white"
                   >
+                    <div className="px-4 py-2 bg-[#f0fdf4] border-b border-[#bbf7d0] flex items-center justify-between text-xs font-bold text-[#14532d]">
+                      <span>{pg.caption}</span>
+                      <span className="tabular-nums">
+                        Page {idx + 1} of {inspectPdfPages.length}
+                      </span>
+                    </div>
                     <img src={pg.url} alt={pg.caption} className="w-full h-auto block" />
                   </div>
                 ))}

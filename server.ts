@@ -54,9 +54,9 @@ async function ensurePgTables(pool: pg.Pool): Promise<void> {
   `);
 }
 
-async function persistPdfBuffer(fileId: string, buffer: Buffer): Promise<void> {
+async function persistPdfBuffer(fileId: string, buffer: Buffer, ext = 'pdf'): Promise<void> {
   ensureStorageDirs();
-  fs.writeFileSync(path.join(UPLOADS_DIR, `${fileId}.pdf`), buffer);
+  fs.writeFileSync(path.join(UPLOADS_DIR, `${fileId}.${ext}`), buffer);
   const pool = getPgPool();
   if (pool) {
     await pool.query(
@@ -65,6 +65,29 @@ async function persistPdfBuffer(fileId: string, buffer: Buffer): Promise<void> {
       [fileId, buffer]
     );
   }
+}
+
+function detectImageMime(buf: Buffer): string | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return 'image/png';
+  }
+  if (
+    buf.length >= 12 &&
+    buf.slice(0, 4).toString('ascii') === 'RIFF' &&
+    buf.slice(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  return null;
 }
 
 interface StoredUser extends UserAccount {
@@ -821,6 +844,84 @@ async function startServer() {
     return res.status(404).json({ error: 'PDF document not found.' });
   });
 
+  // Upload National ID image (JPEG / PNG / WEBP)
+  app.post('/api/uploads/image', async (req, res) => {
+    const user = getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { filename, base64Data, side } = req.body as {
+      filename?: string;
+      base64Data?: string;
+      side?: 'front' | 'back';
+    };
+    if (!base64Data) {
+      return res.status(400).json({ error: 'No image payload provided.' });
+    }
+
+    try {
+      const cleaned = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      const buffer = Buffer.from(cleaned, 'base64');
+      const mimeType = detectImageMime(buffer);
+      if (!mimeType) {
+        return res.status(400).json({ error: 'Only valid JPG, PNG, or WEBP photos are accepted.' });
+      }
+      const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const fileId = `img_${crypto.randomUUID().slice(0, 12)}`;
+      await persistPdfBuffer(fileId, buffer, ext);
+
+      return res.json({
+        side: side === 'back' ? 'back' : 'front',
+        fileId,
+        filename: filename || `${fileId}.${ext}`,
+        mimeType,
+        sizeBytes: buffer.length,
+      });
+    } catch {
+      return res.status(400).json({ error: 'Failed to process uploaded photo.' });
+    }
+  });
+
+  // Serve stored National ID image
+  app.get('/api/uploads/image/:fileId', async (req, res) => {
+    const safeId = req.params.fileId.replace(/[^a-zA-Z0-9_-]/g, '');
+    for (const [ext, mime] of [
+      ['jpg', 'image/jpeg'],
+      ['png', 'image/png'],
+      ['webp', 'image/webp'],
+    ] as const) {
+      const filePath = path.join(UPLOADS_DIR, `${safeId}.${ext}`);
+      if (fs.existsSync(filePath)) {
+        res.setHeader('Content-Type', mime);
+        return fs.createReadStream(filePath).pipe(res);
+      }
+    }
+
+    const pool = getPgPool();
+    if (pool) {
+      try {
+        const result = await pool.query<{ content: Buffer }>(
+          `SELECT content FROM askuala_pdfs WHERE file_id = $1 LIMIT 1`,
+          [safeId]
+        );
+        const buf = result.rows[0]?.content;
+        if (buf) {
+          const mime = detectImageMime(buf) || 'image/jpeg';
+          const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+          ensureStorageDirs();
+          fs.writeFileSync(path.join(UPLOADS_DIR, `${safeId}.${ext}`), buf);
+          res.setHeader('Content-Type', mime);
+          return res.send(buf);
+        }
+      } catch (err) {
+        console.error('Postgres image lookup failed:', err);
+      }
+    }
+
+    return res.status(404).json({ error: 'Image not found.' });
+  });
+
   // Save or Submit Tutor Application
   app.post('/api/tutor/application', (req, res) => {
     const user = getUserFromReq(req);
@@ -835,6 +936,8 @@ async function startServer() {
       profile,
       academicRecords,
       uploadedDocuments,
+      nationalIdFront,
+      nationalIdBack,
       mergedPdfFileId,
       mergedPdfFilename,
       agreedToTerms,
@@ -874,6 +977,12 @@ async function startServer() {
     }
     const cleanProfile = { ...profile, phone: normalizedPhone };
 
+    if (submit && (!nationalIdFront?.fileId || !nationalIdBack?.fileId)) {
+      return res.status(400).json({
+        error: 'Please upload photos of both the Front Side and Back Side of your National ID.',
+      });
+    }
+
     if (submit && !agreedToTerms) {
       return res.status(400).json({
         error: 'Please check all mandatory agreement statements before submitting your application.',
@@ -900,6 +1009,8 @@ async function startServer() {
       existing.profile = cleanProfile;
       existing.academicRecords = academicRecords;
       existing.uploadedDocuments = uploadedDocuments || [];
+      if (nationalIdFront !== undefined) existing.nationalIdFront = nationalIdFront;
+      if (nationalIdBack !== undefined) existing.nationalIdBack = nationalIdBack;
       existing.mergedPdfFileId = mergedPdfFileId || existing.mergedPdfFileId;
       existing.mergedPdfFilename = mergedPdfFilename || existing.mergedPdfFilename;
       existing.status = status;
@@ -919,6 +1030,8 @@ async function startServer() {
         profile: cleanProfile,
         academicRecords,
         uploadedDocuments: uploadedDocuments || [],
+        nationalIdFront,
+        nationalIdBack,
         mergedPdfFileId,
         mergedPdfFilename,
         agreedToTerms: submit ? true : undefined,
@@ -955,6 +1068,8 @@ async function startServer() {
       kidsCountNumber,
       kids,
       tutorPreference,
+      nationalIdFront,
+      nationalIdBack,
       summaryPdfFileId,
       summaryPdfFilename,
       agreedToTerms,
@@ -996,6 +1111,12 @@ async function startServer() {
     }
     const cleanParentProfile = { ...parentProfile, phone: normalizedPhone };
 
+    if (submit && (!nationalIdFront?.fileId || !nationalIdBack?.fileId)) {
+      return res.status(400).json({
+        error: 'እባክዎ የብሔራዊ መታወቂያዎን የፊት እና የጀርባ ፎቶዎች ያስገቡ።',
+      });
+    }
+
     if (submit && !agreedToTerms) {
       return res.status(400).json({
         error: 'ማመልከቻውን ከመላክዎ በፊት ሁሉንም የግዴታ ስምምነቶች ማረጋገጥ አለብዎት።',
@@ -1010,6 +1131,8 @@ async function startServer() {
       existing.kidsCountNumber = kidsCountNumber || kids.length;
       existing.kids = kids;
       existing.tutorPreference = tutorPreference;
+      if (nationalIdFront !== undefined) existing.nationalIdFront = nationalIdFront;
+      if (nationalIdBack !== undefined) existing.nationalIdBack = nationalIdBack;
       existing.summaryPdfFileId = summaryPdfFileId || existing.summaryPdfFileId;
       existing.summaryPdfFilename = summaryPdfFilename || existing.summaryPdfFilename;
       existing.status = submit ? 'submitted' : existing.status;
@@ -1029,6 +1152,8 @@ async function startServer() {
         kidsCountNumber: kidsCountNumber || kids.length,
         kids,
         tutorPreference,
+        nationalIdFront,
+        nationalIdBack,
         summaryPdfFileId,
         summaryPdfFilename,
         agreedToTerms: submit ? true : undefined,

@@ -507,6 +507,18 @@ export const standaloneApi = {
     };
   },
 
+  async uploadImage(filename: string, bytes: Uint8Array, side: 'front' | 'back', mimeType = 'image/jpeg') {
+    const fileId = `img_${Math.random().toString(36).slice(2, 12)}`;
+    await saveStandalonePdfBytes(fileId, bytes);
+    return {
+      side,
+      fileId,
+      filename,
+      mimeType,
+      sizeBytes: bytes.length,
+    };
+  },
+
   saveTutorApp(payload: Partial<TutorApplication> & { submit?: boolean }) {
     const db = getDb();
     const user = db.users.find((u) => u.id === db.currentUserId);
@@ -523,6 +535,9 @@ export const standaloneApi = {
       db.parentApplications.some((p) => p.userId !== user.id && normalizePhone(p.parentProfile.phone) === normalizedPhone);
     if (duplicatePhone) {
       throw new Error('Each Ethiopian phone number can only be registered once. This number belongs to another account.');
+    }
+    if (payload.submit && (!payload.nationalIdFront?.fileId || !payload.nationalIdBack?.fileId)) {
+      throw new Error('Please upload both Front and Back photos of your National ID.');
     }
     if (payload.submit && !payload.agreedToTerms) {
       throw new Error('Please confirm all mandatory agreement statements before submitting.');
@@ -546,6 +561,8 @@ export const standaloneApi = {
         profile: cleanProfile,
         academicRecords: payload.academicRecords || {},
         uploadedDocuments: payload.uploadedDocuments || [],
+        nationalIdFront: payload.nationalIdFront,
+        nationalIdBack: payload.nationalIdBack,
         mergedPdfFileId: payload.mergedPdfFileId,
         mergedPdfFilename: payload.mergedPdfFilename,
         agreedToTerms: payload.submit ? true : undefined,
@@ -577,6 +594,9 @@ export const standaloneApi = {
     if (duplicatePhone) {
       throw new Error('ይህ የስልክ ቁጥር አስቀድሞ በሌላ አካውንት ተመዝግቧል። በአንድ ስልክ ቁጥር አንድ ጊዜ ብቻ መመዝገብ ይቻላል።');
     }
+    if (payload.submit && (!payload.nationalIdFront?.fileId || !payload.nationalIdBack?.fileId)) {
+      throw new Error('እባክዎ የብሔራዊ መታወቂያዎን የፊት እና የጀርባ ፎቶዎች ያስገቡ።');
+    }
     if (payload.submit && !payload.agreedToTerms) {
       throw new Error('ማመልከቻውን ከመላክዎ በፊት ሁሉንም የግዴታ ስምምነቶች ማረጋገጥ አለብዎት።');
     }
@@ -601,6 +621,8 @@ export const standaloneApi = {
         kidsCountNumber: payload.kidsCountNumber || 1,
         kids: payload.kids || [],
         tutorPreference: payload.tutorPreference!,
+        nationalIdFront: payload.nationalIdFront,
+        nationalIdBack: payload.nationalIdBack,
         summaryPdfFileId: payload.summaryPdfFileId,
         summaryPdfFilename: payload.summaryPdfFilename,
         agreedToTerms: payload.submit ? true : undefined,

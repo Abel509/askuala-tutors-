@@ -31,6 +31,14 @@ export interface UploadedPdfDoc {
   sizeBytes: number;
 }
 
+export interface UploadedImageDoc {
+  side: 'front' | 'back';
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface TutorProfileData {
   fullName: string;
   phone: string;
@@ -63,6 +71,8 @@ export interface TutorApplication {
   profile: TutorProfileData;
   academicRecords: TutorAcademicRecords;
   uploadedDocuments: UploadedPdfDoc[];
+  nationalIdFront?: UploadedImageDoc;
+  nationalIdBack?: UploadedImageDoc;
   mergedPdfFileId?: string;
   mergedPdfFilename?: string;
   agreedToTerms?: boolean;
@@ -110,6 +120,8 @@ export interface ParentApplication {
   kidsCountNumber: number;
   kids: KidProfileItem[];
   tutorPreference: ParentTutorPreference;
+  nationalIdFront?: UploadedImageDoc;
+  nationalIdBack?: UploadedImageDoc;
   summaryPdfFileId?: string;
   summaryPdfFilename?: string;
   agreedToTerms?: boolean;
