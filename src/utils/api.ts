@@ -428,6 +428,7 @@ export async function resetAdminUserPassword(
 
 export interface QuickConfirmMatchPayload {
   tutorAppId: string;
+  existingParentAppId?: string;
   parentName: string;
   parentPhone?: string;
   location?: string;

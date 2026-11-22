@@ -1,7 +1,34 @@
 import type { SiteMode } from '../types/app';
 
 export function detectSiteMode(): SiteMode {
-  return 'tutor';
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const qSite = (params.get('site') || params.get('portal') || '').toLowerCase();
+    if (qSite === 'tutor' || qSite === 'tutors') return 'tutor';
+    if (qSite === 'parent' || qSite === 'parents') return 'parent';
+    if (qSite === 'owner' || qSite === 'admin') return 'owner';
+
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/tutor' || path.startsWith('/tutor/')) return 'tutor';
+    if (path === '/parent' || path.startsWith('/parent/')) return 'parent';
+    if (path === '/owner' || path.startsWith('/owner/') || path === '/admin' || path.startsWith('/admin/')) {
+      return 'owner';
+    }
+  }
+
+  const envMode = String(import.meta.env.VITE_SITE_MODE || '').toLowerCase();
+  if (envMode === 'tutor') return 'tutor';
+  if (envMode === 'parent') return 'parent';
+  if (envMode === 'owner' || envMode === 'admin') return 'owner';
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes('tutor')) return 'tutor';
+    if (host.includes('parent') || host.includes('welaj')) return 'parent';
+    if (host.includes('owner') || host.includes('admin')) return 'owner';
+  }
+
+  return 'parent';
 }
 
 export function getSeparateWebsiteUrls(): {
@@ -14,8 +41,8 @@ export function getSeparateWebsiteUrls(): {
       ? window.location.origin
       : 'https://askualatutors.com';
   return {
-    tutorUrl: `${origin}/`,
-    parentUrl: `${origin}/`,
-    ownerUrl: `${origin}/`,
+    tutorUrl: `${origin}/tutor`,
+    parentUrl: `${origin}/parent`,
+    ownerUrl: `${origin}/owner`,
   };
 }

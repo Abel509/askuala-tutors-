@@ -37,7 +37,13 @@
       "createdAt": "2026-11-19T06:50:56.423Z"
     }
   ],
-  "sessions": [],
+  "sessions": [
+    {
+      "token": "2d2508cbc887997eb516184e23050b07b260cad69f95aff5",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-22T20:21:45.107Z"
+    }
+  ],
   "tutorApplications": [
     {
       "id": "tapp_1",

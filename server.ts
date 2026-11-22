@@ -1594,6 +1594,7 @@ async function startServer() {
     }
     const body = req.body as {
       tutorAppId?: string;
+      existingParentAppId?: string;
       parentName?: string;
       parentPhone?: string;
       location?: string;
@@ -1615,58 +1616,81 @@ async function startServer() {
       return res.status(404).json({ error: 'Tutor application not found.' });
     }
 
-    const cleanName = (body.parentName || '').trim() || 'Direct Parent Inquiry';
+    const now = new Date().toISOString();
+    const existingParent = body.existingParentAppId
+      ? db.parentApplications.find((p) => p.id === body.existingParentAppId)
+      : undefined;
+
+    const cleanName = (body.parentName || '').trim() || existingParent?.parentProfile.fullName || 'Direct Parent Inquiry';
     const rawPhone = (body.parentPhone || '').trim();
-    const normalizedPhone = rawPhone ? normalizeEthiopianPhone(rawPhone) || rawPhone : 'Owner Logged';
-    const location = body.location && body.location !== 'any' ? body.location : tutor.profile.preferredLocations[0] || '4_kilo';
-    const subjects = Array.isArray(body.subjects) && body.subjects.length > 0 ? body.subjects : tutor.profile.preferredSubjects.slice(0, 3);
-    const days = Array.isArray(body.selectedDays) && body.selectedDays.length > 0 ? body.selectedDays : tutor.profile.preferredDays;
+    const normalizedPhone = rawPhone
+      ? normalizeEthiopianPhone(rawPhone) || rawPhone
+      : existingParent?.parentProfile.phone || 'Owner Logged';
+    const location =
+      body.location && body.location !== 'any'
+        ? body.location
+        : existingParent?.parentProfile.location || tutor.profile.preferredLocations[0] || '4_kilo';
+    const subjects =
+      Array.isArray(body.subjects) && body.subjects.length > 0
+        ? body.subjects
+        : tutor.profile.preferredSubjects.slice(0, 3);
+    const days =
+      Array.isArray(body.selectedDays) && body.selectedDays.length > 0
+        ? body.selectedDays
+        : tutor.profile.preferredDays;
     const grades = Array.isArray(body.gradeLevels) && body.gradeLevels.length > 0 ? body.gradeLevels : ['grade_8'];
     const kidsCount = Math.max(1, Math.min(10, Number(body.kidsCount || grades.length || 1)));
 
-    const now = new Date().toISOString();
-    const kids: KidProfileItem[] = Array.from({ length: kidsCount }, (_, idx) => ({
-      id: `kid_${idx + 1}`,
-      gradeLevel: grades[idx % grades.length] || 'grade_8',
-      selectedDays: days,
-      hoursPerDay: (body.hoursPerDay as any) || '2',
-      weekdaySlots: Array.isArray(body.weekdaySlots) ? body.weekdaySlots : [],
-      weekendSlots: Array.isArray(body.weekendSlots) ? body.weekendSlots : [],
-      schoolType: 'private',
-      privateCurriculum: 'standard',
-      preferredSubjects: subjects,
-      subjectStatus: 'medium',
-    }));
+    let parentApp: ParentApplication;
+    if (existingParent) {
+      existingParent.status = 'matched';
+      existingParent.updatedAt = now;
+      parentApp = existingParent;
+    } else {
+      const kids: KidProfileItem[] = Array.from({ length: kidsCount }, (_, idx) => ({
+        id: `kid_${idx + 1}`,
+        gradeLevel: grades[idx % grades.length] || 'grade_8',
+        selectedDays: days,
+        hoursPerDay: (body.hoursPerDay as any) || '2',
+        weekdaySlots: Array.isArray(body.weekdaySlots) ? body.weekdaySlots : [],
+        weekendSlots: Array.isArray(body.weekendSlots) ? body.weekendSlots : [],
+        schoolType: 'private',
+        privateCurriculum: 'standard',
+        preferredSubjects: subjects,
+        subjectStatus: 'medium',
+      }));
 
-    const mappedBudget =
-      body.feeBudget === '400_600'
-        ? 'max_600'
-        : body.feeBudget === '600_plus'
-        ? '600_700_efficiency'
-        : 'max_600';
+      const mappedBudget =
+        body.feeBudget === '400_600'
+          ? 'max_600'
+          : body.feeBudget === '600_plus'
+          ? '600_700_efficiency'
+          : 'max_600';
 
-    const parentApp: ParentApplication = {
-      id: `papp_${crypto.randomUUID().slice(0, 8)}`,
-      userId: admin.id,
-      status: 'matched',
-      parentProfile: {
-        fullName: cleanName,
-        phone: normalizedPhone,
-        location,
-        expectedPaymentPerHour: mappedBudget as any,
-      },
-      kidsCountChoice: kidsCount >= 4 ? 'more' : (String(kidsCount) as any),
-      kidsCountNumber: kidsCount,
-      kids,
-      tutorPreference: {
-        sex: (body.sexPreference === 'female' || body.sexPreference === 'male' ? body.sexPreference : 'any') as any,
-        mode: (body.mode === 'online' ? 'online' : 'in_person') as any,
-      },
-      agreedToTerms: true,
-      agreedAt: now,
-      submittedAt: now,
-      updatedAt: now,
-    };
+      parentApp = {
+        id: `papp_${crypto.randomUUID().slice(0, 8)}`,
+        userId: admin.id,
+        status: 'matched',
+        parentProfile: {
+          fullName: cleanName,
+          phone: normalizedPhone,
+          location,
+          expectedPaymentPerHour: mappedBudget as any,
+        },
+        kidsCountChoice: kidsCount >= 4 ? 'more' : (String(kidsCount) as any),
+        kidsCountNumber: kidsCount,
+        kids,
+        tutorPreference: {
+          sex: (body.sexPreference === 'female' || body.sexPreference === 'male' ? body.sexPreference : 'any') as any,
+          mode: (body.mode === 'online' ? 'online' : 'in_person') as any,
+        },
+        agreedToTerms: true,
+        agreedAt: now,
+        submittedAt: now,
+        updatedAt: now,
+      };
+      db.parentApplications.unshift(parentApp);
+    }
 
     const matchedSubjects = subjects.filter((s) => tutor.profile.preferredSubjects.includes(s));
     const match: MatchRecord = {
@@ -1690,7 +1714,6 @@ async function startServer() {
       updatedAt: now,
     };
 
-    db.parentApplications.unshift(parentApp);
     db.matches.unshift(match);
     saveDatabase(db);
     return res.json({ match, parent: parentApp });

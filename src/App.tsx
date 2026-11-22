@@ -80,7 +80,19 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || window.location.protocol === 'file:') return;
+    if (typeof window === 'undefined') return;
+    if (siteMode === 'tutor') {
+      document.title = 'ኣስኳላ Tutors – Tutor Application & Registration Portal';
+      document.documentElement.lang = 'en';
+    } else if (siteMode === 'owner') {
+      document.title = 'ኣስኳላ – Owner Coordinator Console';
+      document.documentElement.lang = 'en';
+    } else {
+      document.title = 'ኣስኳላ — የወላጆች ፖርታል | Parent Application Portal';
+      document.documentElement.lang = 'am';
+    }
+
+    if (window.location.protocol === 'file:') return;
     const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
     let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (!link) {
@@ -97,7 +109,7 @@ export default function App() {
       document.head.appendChild(ogUrl);
     }
     ogUrl.content = canonicalUrl;
-  }, []);
+  }, [siteMode]);
 
   const navigateHome = () => {
     setView(siteMode === 'owner' ? 'admin' : 'home');
@@ -105,7 +117,7 @@ export default function App() {
     setOwnerClicks(0);
   };
 
-  const openAuth = (mode: 'login' | 'register', role: UserRole = 'tutor') => {
+  const openAuth = (mode: 'login' | 'register', role: UserRole = 'parent') => {
     setAuthConfig({ mode, role: lockedApplicantRole || role });
     setView('auth');
   };

@@ -58,12 +58,14 @@ import type {
   AdminParentItem,
   AdminTutorItem,
   MatchRecord,
+  SiteMode,
   TutorApplication,
   UserAccount,
 } from '../types/app';
 
 interface AdminConsoleProps {
   user: UserAccount | null;
+  siteMode?: SiteMode;
   onAuthenticatedAdmin?: (res: AuthResponse) => void;
   onHeroUpdated?: () => void;
   onBackHome: () => void;
@@ -111,6 +113,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   // Parent-Requirement Perfect-Match Finder State
   const [finderDraft, setFinderDraft] = useState<OwnerParentSearchCriteria>(DEFAULT_FINDER_CRITERIA);
   const [appliedCriteria, setAppliedCriteria] = useState<OwnerParentSearchCriteria | null>(null);
+  const [linkedParentAppId, setLinkedParentAppId] = useState<string>('');
   const [showFinderSlots, setShowFinderSlots] = useState(false);
   const [confirmingFinderTutorId, setConfirmingFinderTutorId] = useState<string | null>(null);
 
@@ -279,7 +282,60 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
   const handleResetFinder = () => {
     setFinderDraft(DEFAULT_FINDER_CRITERIA);
     setAppliedCriteria(null);
+    setLinkedParentAppId('');
     setStatusBanner(null);
+  };
+
+  const handleLoadParentIntoFinder = (parentId: string) => {
+    setLinkedParentAppId(parentId);
+    setStatusBanner(null);
+    if (!parentId) {
+      setFinderDraft(DEFAULT_FINDER_CRITERIA);
+      setAppliedCriteria(null);
+      return;
+    }
+    const found = activeParents.find((p) => p.id === parentId);
+    if (!found) return;
+
+    const allSubjects = Array.from(new Set(found.kids.flatMap((k) => k.preferredSubjects)));
+    const allGrades = Array.from(new Set(found.kids.map((k) => k.gradeLevel).filter(Boolean)));
+    const allDays = Array.from(new Set(found.kids.flatMap((k) => k.selectedDays)));
+    const allWdSlots = Array.from(new Set(found.kids.flatMap((k) => k.weekdaySlots)));
+    const allWeSlots = Array.from(new Set(found.kids.flatMap((k) => k.weekendSlots)));
+    const maxHours = found.kids.reduce<'1' | '2' | '3' | 'any'>((acc, k) => {
+      if (k.hoursPerDay === '3') return '3';
+      if (k.hoursPerDay === '2' && acc !== '3') return '2';
+      if (k.hoursPerDay === '1' && acc === 'any') return '1';
+      return acc;
+    }, 'any');
+
+    const feeBudget =
+      found.parentProfile.expectedPaymentPerHour === '600_700_efficiency'
+        ? '600_plus'
+        : found.parentProfile.expectedPaymentPerHour
+        ? '400_600'
+        : 'any';
+
+    const populated: OwnerParentSearchCriteria = {
+      parentName: found.parentProfile.fullName,
+      parentPhone: found.parentProfile.phone,
+      location: found.parentProfile.location || 'any',
+      mode: found.tutorPreference.mode || 'any',
+      sexPreference: found.tutorPreference.sex || 'any',
+      feeBudget,
+      kidsCount: found.kids.length || found.kidsCountNumber || 1,
+      gradeLevels: allGrades,
+      subjects: allSubjects,
+      selectedDays: allDays,
+      minDaysPerWeek: allDays.length,
+      hoursPerDay: maxHours,
+      weekdaySlots: allWdSlots,
+      weekendSlots: allWeSlots,
+      verifiedOnly: false,
+      excludeMatched: true,
+    };
+    setFinderDraft(populated);
+    setAppliedCriteria(populated);
   };
 
   const handleConfirmFromFinder = async (ranked: RankedTutorMatch) => {
@@ -290,6 +346,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
     try {
       await quickConfirmAdminMatch({
         tutorAppId: ranked.tutor.id,
+        existingParentAppId: linkedParentAppId || undefined,
         parentName: criteria.parentName.trim() || 'Parent Request (Owner Match)',
         parentPhone: criteria.parentPhone.trim() || undefined,
         location: criteria.location,
@@ -305,6 +362,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
         weekendSlots: criteria.weekendSlots,
         compatibilityScore: ranked.score,
       });
+      setLinkedParentAppId('');
       await loadOverview();
       setStatusBanner(
         `Match confirmed! ${ranked.tutor.profile.fullName} has been paired and moved to Confirmed Matches.`
@@ -851,6 +909,38 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                     onSubmit={handleRunFinderSearch}
                     className="p-5 rounded-2xl bg-[#f0fdf4] border-2 border-[#22c55e] space-y-5"
                   >
+                    {activeParents.length > 0 && (
+                      <div className="p-3.5 rounded-xl bg-white border border-[#22c55e] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <label
+                            htmlFor="finder-load-parent"
+                            className="block text-xs font-bold text-[#14532d]"
+                          >
+                            Optional: Auto-fill from a Submitted Parent Application (
+                            {activeParents.length} waiting)
+                          </label>
+                          <p className="text-[11px] text-[#475569]">
+                            Pick a parent who registered on the Parent Website or enter requirements
+                            manually below.
+                          </p>
+                        </div>
+                        <select
+                          id="finder-load-parent"
+                          value={linkedParentAppId}
+                          onChange={(e) => handleLoadParentIntoFinder(e.target.value)}
+                          className="min-h-[40px] sm:w-80 px-3 py-1.5 rounded-lg border border-[#22c55e] bg-[#f0fdf4] text-sm font-semibold text-[#14532d]"
+                        >
+                          <option value="">-- Enter parent criteria manually --</option>
+                          {activeParents.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.parentProfile.fullName} ({p.parentProfile.phone}) —{' '}
+                              {lookupLoc(p.parentProfile.location)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {/* Row 1: Optional Family Reference */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
