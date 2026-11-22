@@ -16,7 +16,7 @@
   html {
     background-color: var(--green-space);
     color: var(--text);
-    font-family: 'Times New Roman', Times, 'Noto Sans Ethiopic', serif;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', system-ui, -apple-system, sans-serif;
     scroll-behavior: smooth;
   }
 
@@ -26,8 +26,8 @@
     background-color: var(--green-space);
     color: var(--text);
     line-height: 1.55;
-    border-left: 18px solid var(--green-margin);
-    border-right: 18px solid var(--green-margin);
+    border-left: 16px solid var(--green-margin);
+    border-right: 16px solid var(--green-margin);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -42,7 +42,7 @@
   select,
   textarea,
   button {
-    font-family: 'Times New Roman', Times, 'Noto Sans Ethiopic', serif;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', system-ui, -apple-system, sans-serif;
   }
 
   :focus-visible {
@@ -57,11 +57,15 @@
 }
 
 .font-english {
-  font-family: 'Times New Roman', Times, 'Noto Sans Ethiopic', serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', system-ui, -apple-system, sans-serif;
+}
+
+.font-display {
+  font-family: 'Playfair Display', 'Noto Sans Ethiopic', Georgia, serif;
 }
 
 .font-amharic {
-  font-family: 'Noto Sans Ethiopic', 'Nyala', 'Times New Roman', serif;
+  font-family: 'Noto Sans Ethiopic', 'Plus Jakarta Sans', sans-serif;
 }
 
 .tabular-nums {

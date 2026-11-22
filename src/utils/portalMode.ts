@@ -7,6 +7,7 @@ export function detectSiteMode(): SiteMode {
     if (qSite === 'tutor' || qSite === 'tutors') return 'tutor';
     if (qSite === 'parent' || qSite === 'parents') return 'parent';
     if (qSite === 'owner' || qSite === 'admin') return 'owner';
+    if (qSite === 'hub' || qSite === 'all' || qSite === 'both') return 'hub';
 
     const path = window.location.pathname.toLowerCase();
     if (path === '/tutor' || path.startsWith('/tutor/')) return 'tutor';
@@ -26,7 +27,7 @@ export function detectSiteMode(): SiteMode {
   if (envMode === 'parent') return 'parent';
   if (envMode === 'owner' || envMode === 'admin') return 'owner';
 
-  return 'parent';
+  return 'hub';
 }
 
 export function getSeparateWebsiteUrls(): {

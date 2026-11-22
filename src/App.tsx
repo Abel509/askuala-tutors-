@@ -84,12 +84,15 @@ export default function App() {
     if (siteMode === 'tutor') {
       document.title = 'ኣስኳላ Tutors – Tutor Application & Registration Portal';
       document.documentElement.lang = 'en';
+    } else if (siteMode === 'parent') {
+      document.title = 'ኣስኳላ — የወላጆች ፖርታል | Parent Application Portal';
+      document.documentElement.lang = 'am';
     } else if (siteMode === 'owner') {
       document.title = 'ኣስኳላ – Owner Coordinator Console';
       document.documentElement.lang = 'en';
     } else {
-      document.title = 'ኣስኳላ — የወላጆች ፖርታል | Parent Application Portal';
-      document.documentElement.lang = 'am';
+      document.title = 'ኣስኳላ Tutors – Home & Online Tutoring for Families & Scholars';
+      document.documentElement.lang = 'en';
     }
 
     if (window.location.protocol === 'file:') return;
@@ -197,33 +200,28 @@ export default function App() {
         {isAmharicHeader ? 'ወደ ዋናው ይዘት ዝለል' : 'Skip to main content'}
       </a>
 
-      {/* Sticky Deep Forest Green Header */}
+      {/* Sticky Deep Forest Green Header (3-Zone Top Bar Contract) */}
       <header
         style={{ background: 'linear-gradient(90deg, #14532d, #166534)' }}
-        className="sticky top-0 z-30 shrink-0 border-b-[3px] border-[#22c55e] shadow-md text-white no-print"
+        className="sticky top-0 z-30 shrink-0 border-b-2 border-[#22c55e] shadow-md text-white no-print"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-          {/* Brand Wordmark (Returns to Site Home) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
+          {/* Zone 1: Clean Single-Line Brand Wordmark */}
           <button
             type="button"
             onClick={navigateHome}
-            className="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0 cursor-pointer"
+            className="text-lg sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <span className="bg-white text-[#14532d] px-2.5 py-0.5 rounded-md font-amharic font-extrabold text-base sm:text-lg leading-tight shadow-sm">
-              ኣስኳላ
-            </span>
-            <span>
-              <span className="font-amharic">ኣስኳላ</span>{' '}
-              {siteMode === 'parent'
-                ? '— ወላጆች'
-                : siteMode === 'owner'
-                ? 'Owner Console'
-                : 'Tutors'}
-            </span>
+            <span className="font-amharic">ኣስኳላ</span>{' '}
+            {siteMode === 'parent'
+              ? '— ወላጆች'
+              : siteMode === 'owner'
+              ? 'Owner Console'
+              : 'Tutors'}
           </button>
 
-          {/* Navigation */}
-          <nav aria-label="Primary navigation" className="flex items-center gap-4 text-sm font-bold">
+          {/* Zone 2: Clean Single-Line Text Navigation */}
+          <nav aria-label="Primary navigation" className="flex items-center gap-6 text-sm font-semibold">
             <button
               type="button"
               onClick={navigateHome}
@@ -235,15 +233,34 @@ export default function App() {
             >
               {siteMode === 'parent' ? 'መነሻ' : siteMode === 'owner' ? 'Dashboard' : 'Home'}
             </button>
+
+            {siteMode === 'hub' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleStartPortal('parent')}
+                  className="hidden sm:inline-block whitespace-nowrap shrink-0 text-[#dcfce7] hover:text-white hover:underline underline-offset-4 transition-colors cursor-pointer"
+                >
+                  For Parents
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStartPortal('tutor')}
+                  className="hidden sm:inline-block whitespace-nowrap shrink-0 text-[#dcfce7] hover:text-white hover:underline underline-offset-4 transition-colors cursor-pointer"
+                >
+                  For Tutors
+                </button>
+              </>
+            )}
           </nav>
 
-          {/* Header Actions */}
+          {/* Zone 3: Single Primary Action */}
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="px-3.5 sm:px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
+                className="px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
               >
                 {isAmharicHeader ? 'ውጣ' : 'Sign Out'}
               </button>
@@ -251,7 +268,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => openAuth('login', lockedApplicantRole || 'parent')}
-                className="px-3.5 sm:px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
+                className="px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
               >
                 {isAmharicHeader ? 'ግባ' : 'Sign In'}
               </button>
@@ -343,12 +360,12 @@ export default function App() {
               &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span>{' '}
               {isAmharicHeader
                 ? '— የወላጆች ፖርታል · አዲስ አበባ እና ኦንላይን አስጠኚ ማገናኛ'
-                : 'Tutors · Addis Ababa & Online Tutor Portal'}
+                : 'Tutors · Addis Ababa & Online Tutoring'}
             </p>
             <p className="font-amharic text-xs text-[#15803d] font-semibold">
               {isAmharicHeader
                 ? 'ለልጆችዎ ብቁ አስጠኚዎች · Verified Home & Online Tutors'
-                : 'ለመምህራን የተከበረ ዕድል · Academic Excellence & Dedicated Tutoring'}
+                : 'ለልጆችዎ ብቁ አስጠኚዎች · Empowering Ethiopian Scholars to Teach'}
             </p>
           </div>
 
