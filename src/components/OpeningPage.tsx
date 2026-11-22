@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpenCheck, LogIn, UserPlus } from 'lucide-react';
 import heroTutorImg from '../assets/images/ethiopian_tutor_boy_1795096505461.jpg';
-import heroParentImg from '../assets/images/ethiopian_parent_home_1795379446624.jpg';
+import heroParentImg from '../assets/images/ethiopian_female_tutor_kids_1795379813454.jpg';
 import type { SiteMode, UserAccount, UserRole } from '../types/app';
 
 interface OpeningPageProps {
@@ -59,14 +59,14 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
 
       {/* Main Hero Card */}
       <div className="bg-white rounded-[18px] overflow-hidden border-[3px] border-[#14532d] shadow-2xl grid grid-cols-1 md:grid-cols-12">
-        {/* Left: Dedicated Ethiopian Parent & Kids Photo (for Parent Portal) or Tutor Photo */}
+        {/* Left: Dedicated Ethiopian Young Female Tutor & Kids Photo (Parent Portal) or Tutor Photo */}
         <div className="md:col-span-6 relative bg-[#f8fafc] min-h-[340px] md:min-h-[430px] border-b-2 md:border-b-0 md:border-r-2 border-[#dcfce7]">
           {!imgError ? (
             <img
               src={imgSrc}
               alt={
                 isParentOnly
-                  ? 'ኢትዮጵያዊት እናት ልጆቿን ቤት ውስጥ በትምህርታቸው ስትረዳ'
+                  ? 'ወጣት ኢትዮጵያዊት አስጠኚ ሁለት ልጆችን ቤት ውስጥ ስታስጠና'
                   : 'An Ethiopian tutor teaching a student at home'
               }
               referrerPolicy="no-referrer"
