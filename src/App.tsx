@@ -142,7 +142,7 @@ export default function App() {
   };
 
   const handleSecretCornerTap = () => {
-    if (siteMode !== 'hub') return;
+    if (siteMode === 'owner') return;
     if (clickResetRef.current) {
       window.clearTimeout(clickResetRef.current);
     }
@@ -309,7 +309,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Crisp White Accessible Footer + Secret 7-Click Owner Corner (strictly on Hub only) */}
+      {/* Crisp White Accessible Footer + Secret 7-Click Owner Access in Lower-Last-Right Corner */}
       <footer className="relative border-t-[3px] border-[#14532d] bg-white text-[#14532d] py-5 px-4 sm:px-6 lg:px-8 text-sm no-print">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-0.5">
@@ -317,15 +317,17 @@ export default function App() {
               &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span> Tutors
               {isAmharicHeader
                 ? ' · አዲስ አበባ እና ኦንላይን አስጠኚ ማገናኛ'
-                : ' · Addis Ababa & Online Tutoring Platform'}
+                : ' · Addis Ababa & Online Tutor Portal'}
             </p>
             <p className="font-amharic text-xs text-[#15803d] font-semibold">
-              ለተማሪዎች ጥራት ያለው ትምህርት &middot; ለመምህራን የተከበረ ዕድል
+              {isAmharicHeader
+                ? 'ለልጆችዎ ብቁ አስጠኚዎች'
+                : 'ለመምህራን የተከበረ ዕድል · Academic Excellence & Dedicated Tutoring'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3 min-h-[36px] ml-auto">
-            {siteMode === 'hub' && view === 'home' && ownerRevealed && (
+            {siteMode !== 'owner' && view === 'home' && ownerRevealed && (
               <button
                 type="button"
                 onClick={() => setView('admin')}
@@ -338,7 +340,7 @@ export default function App() {
           </div>
         </div>
 
-        {siteMode === 'hub' && view === 'home' && !ownerRevealed && (
+        {siteMode !== 'owner' && view === 'home' && !ownerRevealed && (
           <button
             type="button"
             tabIndex={-1}

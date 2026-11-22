@@ -7,6 +7,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { build as viteBuild, createServer as createViteServer } from 'vite';
 import * as esbuild from 'esbuild';
 import type {
+  KidProfileItem,
   MatchRecord,
   ParentApplication,
   TutorApplication,
@@ -1583,6 +1584,116 @@ async function startServer() {
     recomputeAllMatches(db);
     saveDatabase(db);
     return res.json({ ok: true, match });
+  });
+
+  // Owner Finder quick-confirm: record parent inquiry entered by owner & confirm pair immediately
+  app.post('/api/admin/matches/quick-confirm', (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
+    const body = req.body as {
+      tutorAppId?: string;
+      parentName?: string;
+      parentPhone?: string;
+      location?: string;
+      mode?: string;
+      sexPreference?: string;
+      feeBudget?: string;
+      kidsCount?: number;
+      gradeLevels?: string[];
+      subjects?: string[];
+      selectedDays?: string[];
+      hoursPerDay?: string;
+      weekdaySlots?: string[];
+      weekendSlots?: string[];
+      compatibilityScore?: number;
+    };
+
+    const tutor = db.tutorApplications.find((t) => t.id === body.tutorAppId);
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor application not found.' });
+    }
+
+    const cleanName = (body.parentName || '').trim() || 'Direct Parent Inquiry';
+    const rawPhone = (body.parentPhone || '').trim();
+    const normalizedPhone = rawPhone ? normalizeEthiopianPhone(rawPhone) || rawPhone : 'Owner Logged';
+    const location = body.location && body.location !== 'any' ? body.location : tutor.profile.preferredLocations[0] || '4_kilo';
+    const subjects = Array.isArray(body.subjects) && body.subjects.length > 0 ? body.subjects : tutor.profile.preferredSubjects.slice(0, 3);
+    const days = Array.isArray(body.selectedDays) && body.selectedDays.length > 0 ? body.selectedDays : tutor.profile.preferredDays;
+    const grades = Array.isArray(body.gradeLevels) && body.gradeLevels.length > 0 ? body.gradeLevels : ['grade_8'];
+    const kidsCount = Math.max(1, Math.min(10, Number(body.kidsCount || grades.length || 1)));
+
+    const now = new Date().toISOString();
+    const kids: KidProfileItem[] = Array.from({ length: kidsCount }, (_, idx) => ({
+      id: `kid_${idx + 1}`,
+      gradeLevel: grades[idx % grades.length] || 'grade_8',
+      selectedDays: days,
+      hoursPerDay: (body.hoursPerDay as any) || '2',
+      weekdaySlots: Array.isArray(body.weekdaySlots) ? body.weekdaySlots : [],
+      weekendSlots: Array.isArray(body.weekendSlots) ? body.weekendSlots : [],
+      schoolType: 'private',
+      privateCurriculum: 'standard',
+      preferredSubjects: subjects,
+      subjectStatus: 'medium',
+    }));
+
+    const mappedBudget =
+      body.feeBudget === '400_600'
+        ? 'max_600'
+        : body.feeBudget === '600_plus'
+        ? '600_700_efficiency'
+        : 'max_600';
+
+    const parentApp: ParentApplication = {
+      id: `papp_${crypto.randomUUID().slice(0, 8)}`,
+      userId: admin.id,
+      status: 'matched',
+      parentProfile: {
+        fullName: cleanName,
+        phone: normalizedPhone,
+        location,
+        expectedPaymentPerHour: mappedBudget as any,
+      },
+      kidsCountChoice: kidsCount >= 4 ? 'more' : (String(kidsCount) as any),
+      kidsCountNumber: kidsCount,
+      kids,
+      tutorPreference: {
+        sex: (body.sexPreference === 'female' || body.sexPreference === 'male' ? body.sexPreference : 'any') as any,
+        mode: (body.mode === 'online' ? 'online' : 'in_person') as any,
+      },
+      agreedToTerms: true,
+      agreedAt: now,
+      submittedAt: now,
+      updatedAt: now,
+    };
+
+    const matchedSubjects = subjects.filter((s) => tutor.profile.preferredSubjects.includes(s));
+    const match: MatchRecord = {
+      id: `match_${crypto.randomUUID().slice(0, 8)}`,
+      parentAppId: parentApp.id,
+      tutorAppId: tutor.id,
+      parentName: parentApp.parentProfile.fullName,
+      parentPhone: parentApp.parentProfile.phone,
+      parentLocation: parentApp.parentProfile.location,
+      parentBudget: parentApp.parentProfile.expectedPaymentPerHour as any,
+      tutorName: tutor.profile.fullName,
+      tutorPhone: tutor.profile.phone,
+      tutorEducation: tutor.profile.educationLevel as any,
+      tutorFee: tutor.profile.expectedFeePerHour as any,
+      tutorMode: tutor.profile.tutoringMode as any,
+      compatibilityScore: Math.max(1, Math.min(100, Math.round(body.compatibilityScore ?? 100))),
+      matchedSubjects: matchedSubjects.length > 0 ? matchedSubjects : subjects,
+      matchedLocations: tutor.profile.preferredLocations.includes(location) ? [location] : [],
+      matchedSchedule: days,
+      status: 'confirmed',
+      updatedAt: now,
+    };
+
+    db.parentApplications.unshift(parentApp);
+    db.matches.unshift(match);
+    saveDatabase(db);
+    return res.json({ match, parent: parentApp });
   });
 
   // Build and download a 100% self-contained single index.html file (works offline via file://)

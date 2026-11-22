@@ -416,6 +416,36 @@ export async function resetAdminUserPassword(
   });
 }
 
+export interface QuickConfirmMatchPayload {
+  tutorAppId: string;
+  parentName: string;
+  parentPhone?: string;
+  location?: string;
+  mode?: string;
+  sexPreference?: string;
+  feeBudget?: string;
+  kidsCount?: number;
+  gradeLevels?: string[];
+  subjects?: string[];
+  selectedDays?: string[];
+  hoursPerDay?: string;
+  weekdaySlots?: string[];
+  weekendSlots?: string[];
+  compatibilityScore?: number;
+}
+
+export async function quickConfirmAdminMatch(
+  payload: QuickConfirmMatchPayload
+): Promise<{ match: MatchRecord; parent: ParentApplication }> {
+  if (isStandaloneFileMode()) {
+    return standaloneApi.quickConfirmMatch(payload);
+  }
+  return request('/api/admin/matches/quick-confirm', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function unlockOwnerWithPasscode(passcode: string): Promise<AuthResponse> {
   if (isStandaloneFileMode()) {
     const res = standaloneApi.unlockOwner(passcode);

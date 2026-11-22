@@ -2,33 +2,13 @@ import type { SiteMode } from '../types/app';
 
 export function detectSiteMode(): SiteMode {
   if (typeof window === 'undefined' || window.location.protocol === 'file:') {
-    return 'hub';
+    return 'tutor';
   }
 
   const host = window.location.hostname.toLowerCase();
   const path = window.location.pathname.toLowerCase();
   const params = new URLSearchParams(window.location.search);
   const queryPortal = (params.get('portal') || '').toLowerCase();
-
-  if (
-    host.startsWith('tutor.') ||
-    host.startsWith('tutors.') ||
-    path === '/tutor' ||
-    path.startsWith('/tutor/') ||
-    queryPortal === 'tutor'
-  ) {
-    return 'tutor';
-  }
-
-  if (
-    host.startsWith('parent.') ||
-    host.startsWith('parents.') ||
-    path === '/parent' ||
-    path.startsWith('/parent/') ||
-    queryPortal === 'parent'
-  ) {
-    return 'parent';
-  }
 
   if (
     host.startsWith('owner.') ||
@@ -43,7 +23,18 @@ export function detectSiteMode(): SiteMode {
     return 'owner';
   }
 
-  return 'hub';
+  if (
+    host.startsWith('parent.') ||
+    host.startsWith('parents.') ||
+    path === '/parent' ||
+    path.startsWith('/parent/') ||
+    queryPortal === 'parent'
+  ) {
+    return 'parent';
+  }
+
+  // Default main site is strictly the Tutor Application Website
+  return 'tutor';
 }
 
 export function getSeparateWebsiteUrls(): {
@@ -53,14 +44,14 @@ export function getSeparateWebsiteUrls(): {
 } {
   if (typeof window === 'undefined' || window.location.protocol === 'file:') {
     return {
-      tutorUrl: 'https://askualatutors.com/tutor',
+      tutorUrl: 'https://askualatutors.com/',
       parentUrl: 'https://askualatutors.com/parent',
       ownerUrl: 'https://askualatutors.com/owner',
     };
   }
   const origin = window.location.origin;
   return {
-    tutorUrl: `${origin}/tutor`,
+    tutorUrl: `${origin}/`,
     parentUrl: `${origin}/parent`,
     ownerUrl: `${origin}/owner`,
   };

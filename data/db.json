@@ -37,43 +37,7 @@
       "createdAt": "2026-11-19T06:50:56.423Z"
     }
   ],
-  "sessions": [
-    {
-      "token": "64e1d9e574a5d028d4d9de91e6dd5619d301c656dd0a872c",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T06:51:01.691Z"
-    },
-    {
-      "token": "8be11c973c68797d6cb1327de7dcdc9146467709ee94bd1e",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T09:05:36.201Z"
-    },
-    {
-      "token": "67cb66db7c6cb9ffacf864d61beb31ab01503a7d533b9fe9",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T09:24:55.322Z"
-    },
-    {
-      "token": "bddfda74a67b80e3303558805f023f75b447928fcf4412f4",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T09:24:55.570Z"
-    },
-    {
-      "token": "07f9b1899a7855d2487e4c932136294a34d3d601cba93724",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T09:35:29.401Z"
-    },
-    {
-      "token": "201dba22714b2672c38053e487a9d74c7d7e21a384b18805",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-19T09:35:29.425Z"
-    },
-    {
-      "token": "bc833e9922eb6e17c521c0a941a14c2888cc197afd3ce423",
-      "userId": "user_admin_1",
-      "createdAt": "2026-11-22T19:29:52.673Z"
-    }
-  ],
+  "sessions": [],
   "tutorApplications": [
     {
       "id": "tapp_1",

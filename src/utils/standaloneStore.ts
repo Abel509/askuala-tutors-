@@ -863,4 +863,97 @@ export const standaloneApi = {
     saveDb(db);
     return { ok: true, match };
   },
+
+  quickConfirmMatch(payload: {
+    tutorAppId: string;
+    parentName: string;
+    parentPhone?: string;
+    location?: string;
+    mode?: string;
+    sexPreference?: string;
+    feeBudget?: string;
+    kidsCount?: number;
+    gradeLevels?: string[];
+    subjects?: string[];
+    selectedDays?: string[];
+    hoursPerDay?: string;
+    weekdaySlots?: string[];
+    weekendSlots?: string[];
+    compatibilityScore?: number;
+  }) {
+    const db = getDb();
+    const tutor = db.tutorApplications.find((t) => t.id === payload.tutorAppId);
+    if (!tutor) throw new Error('Tutor not found.');
+    const now = new Date().toISOString();
+    const location =
+      payload.location && payload.location !== 'any'
+        ? payload.location
+        : tutor.profile.preferredLocations[0] || '4_kilo';
+    const subjects =
+      payload.subjects && payload.subjects.length > 0
+        ? payload.subjects
+        : tutor.profile.preferredSubjects.slice(0, 3);
+    const days =
+      payload.selectedDays && payload.selectedDays.length > 0
+        ? payload.selectedDays
+        : tutor.profile.preferredDays;
+    const grades =
+      payload.gradeLevels && payload.gradeLevels.length > 0 ? payload.gradeLevels : ['grade_8'];
+    const kidsCount = Math.max(1, Math.min(10, Number(payload.kidsCount || grades.length || 1)));
+    const parentApp: ParentApplication = {
+      id: `papp_${Math.random().toString(36).slice(2, 8)}`,
+      userId: 'user_admin_1',
+      status: 'matched',
+      parentProfile: {
+        fullName: payload.parentName.trim() || 'Direct Parent Inquiry',
+        phone: (payload.parentPhone || '').trim() || 'Owner Logged',
+        location,
+        expectedPaymentPerHour: (payload.feeBudget === '600_plus' ? '600_700_efficiency' : 'max_600') as any,
+      },
+      kidsCountChoice: kidsCount >= 4 ? 'more' : (String(kidsCount) as any),
+      kidsCountNumber: kidsCount,
+      kids: Array.from({ length: kidsCount }, (_, idx) => ({
+        id: `kid_${idx + 1}`,
+        gradeLevel: grades[idx % grades.length] || 'grade_8',
+        selectedDays: days,
+        hoursPerDay: (payload.hoursPerDay as any) || '2',
+        weekdaySlots: payload.weekdaySlots || [],
+        weekendSlots: payload.weekendSlots || [],
+        schoolType: 'private',
+        privateCurriculum: 'standard',
+        preferredSubjects: subjects,
+        subjectStatus: 'medium',
+      })),
+      tutorPreference: {
+        sex: (payload.sexPreference === 'female' || payload.sexPreference === 'male' ? payload.sexPreference : 'any') as any,
+        mode: (payload.mode === 'online' ? 'online' : 'in_person') as any,
+      },
+      submittedAt: now,
+      updatedAt: now,
+    };
+    const match: MatchRecord = {
+      id: `match_${Math.random().toString(36).slice(2, 8)}`,
+      parentAppId: parentApp.id,
+      tutorAppId: tutor.id,
+      parentName: parentApp.parentProfile.fullName,
+      parentPhone: parentApp.parentProfile.phone,
+      parentLocation: location,
+      parentBudget: parentApp.parentProfile.expectedPaymentPerHour as any,
+      tutorName: tutor.profile.fullName,
+      tutorPhone: tutor.profile.phone,
+      tutorEducation: tutor.profile.educationLevel as any,
+      tutorFee: tutor.profile.expectedFeePerHour as any,
+      tutorMode: tutor.profile.tutoringMode as any,
+      compatibilityScore: Math.round(payload.compatibilityScore ?? 100),
+      matchedSubjects: subjects.filter((s) => tutor.profile.preferredSubjects.includes(s)),
+      matchedLocations: tutor.profile.preferredLocations.includes(location) ? [location] : [],
+      matchedSchedule: days,
+      status: 'confirmed',
+      updatedAt: now,
+    };
+    db.parentApplications.unshift(parentApp);
+    db.matches.unshift(match);
+    saveDb(db);
+    return { match, parent: parentApp };
+  },
 };
