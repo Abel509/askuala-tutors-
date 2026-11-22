@@ -46,7 +46,7 @@ export default function App() {
     role: UserRole;
   }>({
     mode: 'register',
-    role: lockedApplicantRole || 'tutor',
+    role: lockedApplicantRole || 'parent',
   });
 
   // Hidden 7-click Owner Access strictly on the main Hub footer (hidden on dedicated tutor/parent websites)
@@ -133,7 +133,7 @@ export default function App() {
 
   const handleResumePortal = () => {
     if (!user) {
-      openAuth('login', lockedApplicantRole || 'tutor');
+      openAuth('login', lockedApplicantRole || 'parent');
       return;
     }
     if (siteMode === 'owner') {
@@ -250,7 +250,7 @@ export default function App() {
             ) : siteMode === 'owner' ? null : (
               <button
                 type="button"
-                onClick={() => openAuth('login', lockedApplicantRole || 'tutor')}
+                onClick={() => openAuth('login', lockedApplicantRole || 'parent')}
                 className="px-3.5 sm:px-4 py-2 rounded-xl bg-white text-[#14532d] text-xs sm:text-sm font-bold hover:bg-[#f0fdf4] transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
               >
                 {isAmharicHeader ? 'ግባ' : 'Sign In'}
@@ -340,14 +340,14 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-0.5">
             <p className="font-bold">
-              &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span> Tutors
+              &copy; {new Date().getFullYear()} <span className="font-amharic">ኣስኳላ</span>{' '}
               {isAmharicHeader
-                ? ' · አዲስ አበባ እና ኦንላይን አስጠኚ ማገናኛ'
-                : ' · Addis Ababa & Online Tutor Portal'}
+                ? '— የወላጆች ፖርታል · አዲስ አበባ እና ኦንላይን አስጠኚ ማገናኛ'
+                : 'Tutors · Addis Ababa & Online Tutor Portal'}
             </p>
             <p className="font-amharic text-xs text-[#15803d] font-semibold">
               {isAmharicHeader
-                ? 'ለልጆችዎ ብቁ አስጠኚዎች'
+                ? 'ለልጆችዎ ብቁ አስጠኚዎች · Verified Home & Online Tutors'
                 : 'ለመምህራን የተከበረ ዕድል · Academic Excellence & Dedicated Tutoring'}
             </p>
           </div>

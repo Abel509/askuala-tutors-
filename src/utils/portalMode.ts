@@ -11,7 +11,12 @@ export function detectSiteMode(): SiteMode {
     const path = window.location.pathname.toLowerCase();
     if (path === '/tutor' || path.startsWith('/tutor/')) return 'tutor';
     if (path === '/parent' || path.startsWith('/parent/')) return 'parent';
-    if (path === '/owner' || path.startsWith('/owner/') || path === '/admin' || path.startsWith('/admin/')) {
+    if (
+      path === '/owner' ||
+      path.startsWith('/owner/') ||
+      path === '/admin' ||
+      path.startsWith('/admin/')
+    ) {
       return 'owner';
     }
   }
@@ -20,13 +25,6 @@ export function detectSiteMode(): SiteMode {
   if (envMode === 'tutor') return 'tutor';
   if (envMode === 'parent') return 'parent';
   if (envMode === 'owner' || envMode === 'admin') return 'owner';
-
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname.toLowerCase();
-    if (host.includes('tutor')) return 'tutor';
-    if (host.includes('parent') || host.includes('welaj')) return 'parent';
-    if (host.includes('owner') || host.includes('admin')) return 'owner';
-  }
 
   return 'parent';
 }
