@@ -691,8 +691,20 @@ export async function buildTutorUnifiedPdf(
     },
     {
       type: 'row',
+      label: 'Days per Week',
+      value: profile.daysPerWeek
+        ? `${profile.daysPerWeek} day(s) per week`
+        : `${profile.preferredDays.length} day(s) per week`,
+    },
+    {
+      type: 'row',
       label: 'Preferred Days',
       value: profile.preferredDays.map((id) => lookupLabel(DAYS_OF_WEEK, id, 'en')).join(', '),
+    },
+    {
+      type: 'row',
+      label: 'Hours per Day',
+      value: profile.hoursPerDay ? `${profile.hoursPerDay} hour(s) per day` : '—',
     },
     {
       type: 'row',
@@ -710,7 +722,7 @@ export async function buildTutorUnifiedPdf(
           ? profile.weekendSlots.map((id) => lookupLabel(WEEKEND_SLOTS, id, 'en')).join(', ')
           : 'None selected',
     },
-    { type: 'section', label: '2. Academic Records (Verified >= 87% | ESSLCE >= 450)' },
+    { type: 'section', label: '2. Academic Records (Verified >= 87% | ESSLCE >= 450/600 or >= 525/700)' },
   ];
 
   if (academicRecords.grade9Avg)
@@ -721,12 +733,15 @@ export async function buildTutorUnifiedPdf(
     lines.push({ type: 'row', label: 'Grade 11 Average', value: `${academicRecords.grade11Avg}%` });
   if (academicRecords.grade12Avg)
     lines.push({ type: 'row', label: 'Grade 12 Average', value: `${academicRecords.grade12Avg}%` });
-  if (academicRecords.esslceOutOf600)
+  const esslceRaw = academicRecords.esslceScore || academicRecords.esslceOutOf600;
+  if (esslceRaw) {
+    const scale = academicRecords.esslceScale === '700' ? '700' : '600';
     lines.push({
       type: 'row',
-      label: 'ESSLCE Score (/600)',
-      value: `${academicRecords.esslceOutOf600} / 600`,
+      label: `ESSLCE Score (/${scale})`,
+      value: `${esslceRaw} / ${scale}`,
     });
+  }
   if (academicRecords.graduationCgpa)
     lines.push({
       type: 'row',
@@ -941,6 +956,11 @@ export async function buildParentAmharicPdf(
       type: 'row',
       label: 'የትምህርት ደረጃ',
       value: lookupLabel(KID_GRADE_LEVELS, kid.gradeLevel, 'am'),
+    });
+    lines.push({
+      type: 'row',
+      label: 'በሳምንት የጥናት ቀናት ብዛት',
+      value: `${kid.daysPerWeek || kid.selectedDays.length} ቀናት`,
     });
     lines.push({
       type: 'row',

@@ -42,6 +42,16 @@
       "token": "2d2508cbc887997eb516184e23050b07b260cad69f95aff5",
       "userId": "user_admin_1",
       "createdAt": "2026-11-22T20:21:45.107Z"
+    },
+    {
+      "token": "f3c6b079832f20bc58903009344004dfcd79d6cb46380a381a1ac3e6b977f0f6",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-23T14:33:52.948Z"
+    },
+    {
+      "token": "926491a8517925c6d33fd684cbfd9b8f883bf0fb411fb80eb97a84f25817f8ee",
+      "userId": "user_admin_1",
+      "createdAt": "2026-11-23T14:34:05.151Z"
     }
   ],
   "tutorApplications": [
@@ -290,6 +300,11 @@
       "updatedAt": "2026-11-19T06:50:56.672Z"
     }
   ],
-  "ownerPasscode": "askuala@2026",
-  "recoveryKey": "6710c7acc1900ec65020410e57d00150d7c95a583b0beb8af8a3dcd0cd93fe72"
+  "recoveryKey": "6710c7acc1900ec65020410e57d00150d7c95a583b0beb8af8a3dcd0cd93fe72",
+  "ownerPasscodeSalt": "a55f4642953613f02da68f9d6ea3eb81",
+  "ownerPasscodeHash": "a2bba677678b98563fe9e9cde73cf2d01a6bd0a19efdea2d36e6175905a7fc6bb6eba20f31d6160f6f822bde2bdd754862cc720d68920bf2b3cdf50fad0f25fe",
+  "uploadedFileOwners": {
+    "img_43cf1865-afe": "user_461d606b-6",
+    "img_b7af1298-9e3": "user_461d606b-6"
+  }
 }

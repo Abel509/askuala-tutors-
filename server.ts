@@ -57,13 +57,18 @@ async function ensurePgTables(pool: pg.Pool): Promise<void> {
 
 async function persistPdfBuffer(fileId: string, buffer: Buffer, ext = 'pdf'): Promise<void> {
   ensureStorageDirs();
-  fs.writeFileSync(path.join(UPLOADS_DIR, `${fileId}.${ext}`), buffer);
+  const safeId = fileId.replace(/[^a-zA-Z0-9_-]/g, '');
+  const resolved = path.resolve(UPLOADS_DIR, `${safeId}.${ext}`);
+  if (!resolved.startsWith(path.resolve(UPLOADS_DIR) + path.sep)) {
+    throw new Error('Invalid file path');
+  }
+  fs.writeFileSync(resolved, buffer);
   const pool = getPgPool();
   if (pool) {
     await pool.query(
       `INSERT INTO askuala_pdfs (file_id, content) VALUES ($1, $2)
        ON CONFLICT (file_id) DO UPDATE SET content = EXCLUDED.content`,
-      [fileId, buffer]
+      [safeId, buffer]
     );
   }
 }
@@ -105,7 +110,10 @@ interface SessionEntry {
 
 interface DatabaseSchema {
   ownerPasscode?: string;
+  ownerPasscodeSalt?: string;
+  ownerPasscodeHash?: string;
   recoveryKey?: string;
+  uploadedFileOwners?: Record<string, string>;
   users: StoredUser[];
   sessions: SessionEntry[];
   tutorApplications: TutorApplication[];
@@ -185,6 +193,64 @@ function hashPassword(password: string, salt?: string): { salt: string; hash: st
   return { salt: actualSalt, hash };
 }
 
+function verifyPasswordHash(password: string, salt: string, expectedHash: string): boolean {
+  try {
+    const computedHex = crypto.scryptSync(password, salt, 64).toString('hex');
+    const a = Buffer.from(computedHex, 'hex');
+    const b = Buffer.from(expectedHash, 'hex');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function pruneSessions(db: DatabaseSchema) {
+  const cutoff = Date.now() - SESSION_TTL_MS;
+  db.sessions = (db.sessions || []).filter((s) => {
+    const ts = Date.parse(s.createdAt);
+    return Number.isFinite(ts) && ts >= cutoff;
+  });
+}
+
+function issueSession(db: DatabaseSchema, userId: string): string {
+  pruneSessions(db);
+  // Keep up to 5 active sessions per user
+  const userSessions = db.sessions.filter((s) => s.userId === userId);
+  if (userSessions.length >= 5) {
+    const dropTokens = new Set(userSessions.slice(0, userSessions.length - 4).map((s) => s.token));
+    db.sessions = db.sessions.filter((s) => !dropTokens.has(s.token));
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  db.sessions.push({ token, userId, createdAt: new Date().toISOString() });
+  return token;
+}
+
+function ensureOwnerPasscodeHashed(db: DatabaseSchema): boolean {
+  let mutated = false;
+  if (!db.ownerPasscodeHash || !db.ownerPasscodeSalt) {
+    const seed =
+      (db.ownerPasscode && db.ownerPasscode.trim()) ||
+      process.env.OWNER_PASSCODE?.trim() ||
+      'askuala@2026';
+    const hashed = hashPassword(seed);
+    db.ownerPasscodeSalt = hashed.salt;
+    db.ownerPasscodeHash = hashed.hash;
+    mutated = true;
+  }
+  if (db.ownerPasscode !== undefined) {
+    delete db.ownerPasscode;
+    mutated = true;
+  }
+  if (!db.uploadedFileOwners) {
+    db.uploadedFileOwners = {};
+    mutated = true;
+  }
+  return mutated;
+}
+
 function normalizeEthiopianPhone(raw: string): string | null {
   const cleaned = String(raw || '').replace(/[\s\-()]/g, '');
   if (/^\+251[97]\d{8}$/.test(cleaned)) return cleaned;
@@ -251,7 +317,11 @@ async function initDatabase(): Promise<DatabaseSchema> {
       );
       if (result.rows[0]?.payload) {
         const remoteDb = result.rows[0].payload;
-        fs.writeFileSync(DB_PATH, JSON.stringify(remoteDb, null, 2), 'utf-8');
+        if (ensureOwnerPasscodeHashed(remoteDb)) {
+          saveDatabase(remoteDb);
+        } else {
+          fs.writeFileSync(DB_PATH, JSON.stringify(remoteDb, null, 2), 'utf-8');
+        }
         return remoteDb;
       }
     } catch (err) {
@@ -263,12 +333,9 @@ async function initDatabase(): Promise<DatabaseSchema> {
     try {
       const raw = fs.readFileSync(DB_PATH, 'utf-8');
       const parsed = JSON.parse(raw) as DatabaseSchema;
-      if (pool) {
-        await pool.query(
-          `INSERT INTO askuala_state (id, payload) VALUES ('main', $1::jsonb)
-           ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-          [JSON.stringify(parsed)]
-        );
+      const migrated = ensureOwnerPasscodeHashed(parsed);
+      if (migrated || pool) {
+        saveDatabase(parsed);
       }
       return parsed;
     } catch {
@@ -323,9 +390,18 @@ async function initDatabase(): Promise<DatabaseSchema> {
     'Status: Verified by Coordinator',
   ]);
 
+  const initialOwnerPw = hashPassword(process.env.OWNER_PASSCODE?.trim() || 'askuala@2026');
+
   const initial: DatabaseSchema = {
-    ownerPasscode: 'askuala@2026',
+    ownerPasscodeSalt: initialOwnerPw.salt,
+    ownerPasscodeHash: initialOwnerPw.hash,
     recoveryKey: crypto.randomBytes(32).toString('hex'),
+    uploadedFileOwners: {
+      [doc1Id]: 'user_tutor_1',
+      [merged1Id]: 'user_tutor_1',
+      [doc2Id]: 'user_tutor_2',
+      [merged2Id]: 'user_tutor_2',
+    },
     users: [
       {
         id: 'user_admin_1',
@@ -539,10 +615,10 @@ function recomputeAllMatches(db: DatabaseSchema) {
 
   const nextMatches: MatchRecord[] = [];
   const activeTutors = db.tutorApplications.filter(
-    (t) => t.status === 'verified' || t.status === 'submitted'
+    (t) => (t.status === 'verified' || t.status === 'submitted') && Boolean(t.submittedAt)
   );
   const activeParents = db.parentApplications.filter(
-    (p) => p.status === 'submitted' || p.status === 'matched'
+    (p) => (p.status === 'submitted' || p.status === 'matched') && Boolean(p.submittedAt)
   );
 
   for (const parent of activeParents) {
@@ -698,14 +774,25 @@ function validateTutorEligibility(
     profile.educationLevel === 'bachelors' ||
     profile.educationLevel === 'certified_teacher'
   ) {
-    const rawEsslce = academicRecords.esslceOutOf600;
-    if (rawEsslce !== undefined && rawEsslce !== '') {
+    const scale =
+      academicRecords.esslceScale || (academicRecords.esslceOutOf600 ? '600' : '');
+    const rawEsslce = academicRecords.esslceScore ?? academicRecords.esslceOutOf600;
+    if (rawEsslce !== undefined && String(rawEsslce).trim() !== '') {
       const esslceVal = Number(rawEsslce);
-      if (Number.isNaN(esslceVal) || esslceVal < 450 || esslceVal > 600) {
-        return {
-          eligible: false,
-          reason: `ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are automatically blocked.`,
-        };
+      if (scale === '700') {
+        if (Number.isNaN(esslceVal) || esslceVal < 525 || esslceVal > 700) {
+          return {
+            eligible: false,
+            reason: `ESSLCE Score (${rawEsslce} / 700) must be 525 or above (525–700). Applicants below 525 out of 700 are automatically blocked.`,
+          };
+        }
+      } else {
+        if (Number.isNaN(esslceVal) || esslceVal < 450 || esslceVal > 600) {
+          return {
+            eligible: false,
+            reason: `ESSLCE Score (${rawEsslce} / 600) must be 450 or above (450–600). Applicants below 450 out of 600 are automatically blocked.`,
+          };
+        }
       }
     }
   }
@@ -713,10 +800,52 @@ function validateTutorEligibility(
   return { eligible: true };
 }
 
+function createRateLimiter(windowMs: number, maxRequests: number, errorMessage: string) {
+  const hits = new Map<string, number[]>();
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const fwd = req.headers['x-forwarded-for'];
+    const ip =
+      (Array.isArray(fwd) ? fwd[0] : fwd?.split(',')[0]?.trim()) ||
+      req.socket.remoteAddress ||
+      'unknown';
+    const now = Date.now();
+    const recent = (hits.get(ip) || []).filter((ts) => now - ts < windowMs);
+    if (recent.length >= maxRequests) {
+      return res.status(429).json({ error: errorMessage });
+    }
+    recent.push(now);
+    hits.set(ip, recent);
+    if (hits.size > 5000) {
+      hits.clear();
+    }
+    next();
+  };
+}
+
 async function startServer() {
   const db = await initDatabase();
   const app = express();
-  app.use(express.json({ limit: '45mb' }));
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
+  const authRateLimiter = createRateLimiter(
+    10 * 60 * 1000,
+    25,
+    'Too many sign-in or verification attempts. Please wait a few minutes or call 0908998412 for help.'
+  );
+  const apiRateLimiter = createRateLimiter(
+    60 * 1000,
+    240,
+    'Too many requests. Please slow down briefly.'
+  );
+
+  app.use('/api', apiRateLimiter);
+  app.use(express.json({ limit: '25mb' }));
 
   const getUserFromReq = (req: express.Request): StoredUser | null => {
     const authHeader = req.headers.authorization;
@@ -724,7 +853,37 @@ async function startServer() {
     if (!token) return null;
     const session = db.sessions.find((s) => s.token === token);
     if (!session) return null;
+    const createdTs = Date.parse(session.createdAt);
+    if (!Number.isFinite(createdTs) || Date.now() - createdTs > SESSION_TTL_MS) {
+      pruneSessions(db);
+      return null;
+    }
     return db.users.find((u) => u.id === session.userId) || null;
+  };
+
+  const canAccessFile = (user: StoredUser, fileId: string): boolean => {
+    if (user.role === 'admin') return true;
+    if (db.uploadedFileOwners?.[fileId] === user.id) return true;
+    const tApp = db.tutorApplications.find((t) => t.userId === user.id);
+    if (
+      tApp &&
+      (tApp.mergedPdfFileId === fileId ||
+        tApp.nationalIdFront?.fileId === fileId ||
+        tApp.nationalIdBack?.fileId === fileId ||
+        tApp.uploadedDocuments.some((d) => d.fileId === fileId))
+    ) {
+      return true;
+    }
+    const pApp = db.parentApplications.find((p) => p.userId === user.id);
+    if (
+      pApp &&
+      (pApp.summaryPdfFileId === fileId ||
+        pApp.nationalIdFront?.fileId === fileId ||
+        pApp.nationalIdBack?.fileId === fileId)
+    ) {
+      return true;
+    }
+    return false;
   };
 
   const sanitizeUser = (u: StoredUser): UserAccount => ({
@@ -736,7 +895,7 @@ async function startServer() {
   });
 
   // Register account with Ethiopian phone + >=8 char strong password
-  app.post('/api/auth/register', (req, res) => {
+  app.post('/api/auth/register', authRateLimiter, (req, res) => {
     const { phone, password, role, fullName } = req.body as {
       phone?: string;
       password?: string;
@@ -782,16 +941,15 @@ async function startServer() {
       id: `user_${crypto.randomUUID().slice(0, 10)}`,
       phone: normalized,
       role,
-      fullName: fullName?.trim() || undefined,
+      fullName: fullName?.trim().slice(0, 120) || undefined,
       passwordSalt: salt,
       passwordHash: hash,
       passwordRecoveryEnc: encryptRecoveryPassword(password, db),
       createdAt: new Date().toISOString(),
     };
 
-    const token = crypto.randomBytes(24).toString('hex');
     db.users.push(newUser);
-    db.sessions.push({ token, userId: newUser.id, createdAt: new Date().toISOString() });
+    const token = issueSession(db, newUser.id);
     saveDatabase(db);
 
     return res.json({
@@ -803,7 +961,7 @@ async function startServer() {
   });
 
   // Sign in
-  app.post('/api/auth/login', (req, res) => {
+  app.post('/api/auth/login', authRateLimiter, (req, res) => {
     const { phone, password } = req.body as { phone?: string; password?: string };
     const normalized = normalizeEthiopianPhone(phone || '');
     if (!normalized || !password) {
@@ -811,17 +969,11 @@ async function startServer() {
     }
 
     const user = db.users.find((u) => u.phone === normalized);
-    if (!user) {
+    if (!user || !verifyPasswordHash(password, user.passwordSalt, user.passwordHash)) {
       return res.status(401).json({ error: 'Phone number or password is incorrect.' });
     }
 
-    const { hash } = hashPassword(password, user.passwordSalt);
-    if (hash !== user.passwordHash) {
-      return res.status(401).json({ error: 'Phone number or password is incorrect.' });
-    }
-
-    const token = crypto.randomBytes(24).toString('hex');
-    db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
+    const token = issueSession(db, user.id);
     saveDatabase(db);
 
     const tutorApplication = db.tutorApplications.find((a) => a.userId === user.id) || null;
@@ -874,6 +1026,9 @@ async function startServer() {
     try {
       const cleaned = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
       const buffer = Buffer.from(cleaned, 'base64');
+      if (buffer.length > 15 * 1024 * 1024) {
+        return res.status(413).json({ error: 'PDF size exceeds the 15 MB limit.' });
+      }
       if (buffer.slice(0, 5).toString('ascii') !== '%PDF-') {
         return res.status(400).json({ error: 'Only valid PDF documents are accepted.' });
       }
@@ -882,10 +1037,14 @@ async function startServer() {
 
       const fileId = `pdf_${crypto.randomUUID().slice(0, 12)}`;
       await persistPdfBuffer(fileId, buffer);
+      db.uploadedFileOwners = db.uploadedFileOwners || {};
+      db.uploadedFileOwners[fileId] = user.id;
+      saveDatabase(db);
 
+      const safeName = (filename || `${fileId}.pdf`).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
       return res.json({
         fileId,
-        filename: filename || `${fileId}.pdf`,
+        filename: safeName,
         pageCount,
         sizeBytes: buffer.length,
       });
@@ -894,13 +1053,21 @@ async function startServer() {
     }
   });
 
-  // Serve stored PDF (from disk cache or Postgres cloud backup)
+  // Serve stored PDF (protected by authentication & ownership / admin role)
   app.get('/api/uploads/pdf/:fileId', async (req, res) => {
+    const user = getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required to access uploaded documents.' });
+    }
     const safeId = req.params.fileId.replace(/[^a-zA-Z0-9_-]/g, '');
-    const filePath = path.join(UPLOADS_DIR, `${safeId}.pdf`);
-    if (fs.existsSync(filePath)) {
+    if (!safeId || !canAccessFile(user, safeId)) {
+      return res.status(403).json({ error: 'Access denied to this document.' });
+    }
+    const filePath = path.resolve(UPLOADS_DIR, `${safeId}.pdf`);
+    if (filePath.startsWith(path.resolve(UPLOADS_DIR) + path.sep) && fs.existsSync(filePath)) {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${safeId}.pdf"`);
+      res.setHeader('Cache-Control', 'private, no-store');
       return fs.createReadStream(filePath).pipe(res);
     }
 
@@ -917,6 +1084,7 @@ async function startServer() {
           fs.writeFileSync(filePath, buf);
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', `inline; filename="${safeId}.pdf"`);
+          res.setHeader('Cache-Control', 'private, no-store');
           return res.send(buf);
         }
       } catch (err) {
@@ -946,6 +1114,9 @@ async function startServer() {
     try {
       const cleaned = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
       const buffer = Buffer.from(cleaned, 'base64');
+      if (buffer.length > 8 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Image size exceeds the 8 MB limit.' });
+      }
       const mimeType = detectImageMime(buffer);
       if (!mimeType) {
         return res.status(400).json({ error: 'Only valid JPG, PNG, or WEBP photos are accepted.' });
@@ -953,11 +1124,15 @@ async function startServer() {
       const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
       const fileId = `img_${crypto.randomUUID().slice(0, 12)}`;
       await persistPdfBuffer(fileId, buffer, ext);
+      db.uploadedFileOwners = db.uploadedFileOwners || {};
+      db.uploadedFileOwners[fileId] = user.id;
+      saveDatabase(db);
 
+      const safeName = (filename || `${fileId}.${ext}`).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
       return res.json({
         side: side === 'back' ? 'back' : 'front',
         fileId,
-        filename: filename || `${fileId}.${ext}`,
+        filename: safeName,
         mimeType,
         sizeBytes: buffer.length,
       });
@@ -966,17 +1141,25 @@ async function startServer() {
     }
   });
 
-  // Serve stored National ID image
+  // Serve stored National ID image (protected by authentication & ownership / admin role)
   app.get('/api/uploads/image/:fileId', async (req, res) => {
+    const user = getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required to access National ID images.' });
+    }
     const safeId = req.params.fileId.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeId || !canAccessFile(user, safeId)) {
+      return res.status(403).json({ error: 'Access denied to this image.' });
+    }
     for (const [ext, mime] of [
       ['jpg', 'image/jpeg'],
       ['png', 'image/png'],
       ['webp', 'image/webp'],
     ] as const) {
-      const filePath = path.join(UPLOADS_DIR, `${safeId}.${ext}`);
-      if (fs.existsSync(filePath)) {
+      const filePath = path.resolve(UPLOADS_DIR, `${safeId}.${ext}`);
+      if (filePath.startsWith(path.resolve(UPLOADS_DIR) + path.sep) && fs.existsSync(filePath)) {
         res.setHeader('Content-Type', mime);
+        res.setHeader('Cache-Control', 'private, no-store');
         return fs.createReadStream(filePath).pipe(res);
       }
     }
@@ -993,8 +1176,9 @@ async function startServer() {
           const mime = detectImageMime(buf) || 'image/jpeg';
           const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
           ensureStorageDirs();
-          fs.writeFileSync(path.join(UPLOADS_DIR, `${safeId}.${ext}`), buf);
+          fs.writeFileSync(path.resolve(UPLOADS_DIR, `${safeId}.${ext}`), buf);
           res.setHeader('Content-Type', mime);
+          res.setHeader('Cache-Control', 'private, no-store');
           return res.send(buf);
         }
       } catch (err) {
@@ -1129,7 +1313,9 @@ async function startServer() {
       user.fullName = cleanProfile.fullName;
     }
 
-    recomputeAllMatches(db);
+    if (submit) {
+      recomputeAllMatches(db);
+    }
     saveDatabase(db);
 
     return res.json({ application: existing });
@@ -1251,7 +1437,9 @@ async function startServer() {
       user.fullName = cleanParentProfile.fullName;
     }
 
-    recomputeAllMatches(db);
+    if (submit) {
+      recomputeAllMatches(db);
+    }
     saveDatabase(db);
 
     return res.json({ application: existing });
@@ -1300,7 +1488,7 @@ async function startServer() {
     return res.json({ matches: db.matches, application: null });
   });
 
-  // Match action (request, confirm, decline)
+  // Match action (request, decline; admin only for confirmed)
   app.post('/api/matches/:matchId/action', (req, res) => {
     const user = getUserFromReq(req);
     if (!user) return res.status(401).json({ error: 'Authentication required' });
@@ -1309,31 +1497,50 @@ async function startServer() {
     const match = db.matches.find((m) => m.id === req.params.matchId);
     if (!match) return res.status(404).json({ error: 'Match not found.' });
 
+    const pApp = db.parentApplications.find((p) => p.userId === user.id);
+    const tApp = db.tutorApplications.find((t) => t.userId === user.id);
+    const isParty =
+      user.role === 'admin' ||
+      (pApp && match.parentAppId === pApp.id) ||
+      (tApp && match.tutorAppId === tApp.id);
+
+    if (!isParty) {
+      return res.status(403).json({ error: 'You are not authorized to update this match.' });
+    }
+    if (status === 'confirmed' && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only the Owner Coordinator can confirm a match.' });
+    }
+
     if (status && ['suggested', 'requested', 'confirmed', 'declined'].includes(status)) {
       match.status = status;
       match.updatedAt = new Date().toISOString();
       if (status === 'confirmed') {
-        const pApp = db.parentApplications.find((p) => p.id === match.parentAppId);
-        if (pApp) pApp.status = 'matched';
+        const matchedParent = db.parentApplications.find((p) => p.id === match.parentAppId);
+        if (matchedParent) matchedParent.status = 'matched';
       }
       saveDatabase(db);
     }
     return res.json({ match });
   });
 
-  // Owner passcode unlock (defaults to askuala@2026 and editable by owner)
-  app.post('/api/admin/unlock', (req, res) => {
+  // Owner passcode unlock (salted scrypt + timingSafeEqual + rate-limited)
+  app.post('/api/admin/unlock', authRateLimiter, (req, res) => {
     const { passcode } = req.body as { passcode?: string };
-    const currentPasscode = db.ownerPasscode || 'askuala@2026';
-    if (!passcode || passcode.trim() !== currentPasscode) {
+    ensureOwnerPasscodeHashed(db);
+    const ok =
+      Boolean(passcode) &&
+      Boolean(db.ownerPasscodeSalt) &&
+      Boolean(db.ownerPasscodeHash) &&
+      verifyPasswordHash(passcode!.trim(), db.ownerPasscodeSalt!, db.ownerPasscodeHash!);
+
+    if (!ok) {
       return res.status(401).json({ error: 'Incorrect owner password. Please try again.' });
     }
     const adminUser = db.users.find((u) => u.role === 'admin');
     if (!adminUser) {
       return res.status(500).json({ error: 'Coordinator account not initialized.' });
     }
-    const token = crypto.randomBytes(24).toString('hex');
-    db.sessions.push({ token, userId: adminUser.id, createdAt: new Date().toISOString() });
+    const token = issueSession(db, adminUser.id);
     saveDatabase(db);
     return res.json({
       token,
@@ -1343,7 +1550,7 @@ async function startServer() {
     });
   });
 
-  // Owner password update
+  // Owner password update (salted scrypt hashed)
   app.post('/api/admin/change-passcode', (req, res) => {
     const user = getUserFromReq(req);
     if (!user || user.role !== 'admin') {
@@ -1353,27 +1560,35 @@ async function startServer() {
       currentPasscode?: string;
       newPasscode?: string;
     };
-    const activePasscode = db.ownerPasscode || 'askuala@2026';
-    if (!currentPasscode || currentPasscode.trim() !== activePasscode) {
+    ensureOwnerPasscodeHashed(db);
+    const matchesCurrent =
+      Boolean(currentPasscode) &&
+      Boolean(db.ownerPasscodeSalt) &&
+      Boolean(db.ownerPasscodeHash) &&
+      verifyPasswordHash(currentPasscode!.trim(), db.ownerPasscodeSalt!, db.ownerPasscodeHash!);
+
+    if (!matchesCurrent) {
       return res.status(400).json({ error: 'Current owner password does not match.' });
     }
     const trimmedNew = (newPasscode || '').trim();
     if (trimmedNew.length < 6) {
       return res.status(400).json({ error: 'New owner password must be at least 6 characters.' });
     }
-    db.ownerPasscode = trimmedNew;
+    const hashed = hashPassword(trimmedNew);
+    db.ownerPasscodeSalt = hashed.salt;
+    db.ownerPasscodeHash = hashed.hash;
+    delete db.ownerPasscode;
     saveDatabase(db);
     return res.json({ ok: true });
   });
 
-  // Admin overview (includes owner-only decrypted recovery passwords)
+  // Admin overview (excludes all drafts — submitted applicants only)
   app.get('/api/admin/overview', (req, res) => {
     const user = getUserFromReq(req);
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ error: 'Coordinator / Admin access required.' });
     }
     recomputeAllMatches(db);
-    saveDatabase(db);
 
     const passwordByUserId = new Map<string, string | null>();
     for (const u of db.users) {
@@ -1382,12 +1597,17 @@ async function startServer() {
       }
     }
 
+    const submittedTutors = db.tutorApplications.filter(
+      (t) => t.status !== 'draft' && Boolean(t.submittedAt)
+    );
+    const submittedParents = db.parentApplications.filter((p) => p.status !== 'draft');
+
     return res.json({
-      tutors: db.tutorApplications.map((t) => ({
+      tutors: submittedTutors.map((t) => ({
         ...t,
         userPassword: passwordByUserId.get(t.userId) ?? null,
       })),
-      parents: db.parentApplications.map((p) => ({
+      parents: submittedParents.map((p) => ({
         ...p,
         userPassword: passwordByUserId.get(p.userId) ?? null,
       })),
@@ -1586,7 +1806,7 @@ async function startServer() {
     return res.json({ ok: true, match });
   });
 
-  // Owner Finder quick-confirm: record parent inquiry entered by owner & confirm pair immediately
+  // Owner Finder quick-confirm: supports both phone-in parent -> website tutor AND phone-in tutor -> website parent
   app.post('/api/admin/matches/quick-confirm', (req, res) => {
     const admin = getUserFromReq(req);
     if (!admin || admin.role !== 'admin') {
@@ -1597,7 +1817,13 @@ async function startServer() {
       existingParentAppId?: string;
       parentName?: string;
       parentPhone?: string;
+      tutorName?: string;
+      tutorPhone?: string;
+      tutorEducation?: string;
+      tutorSex?: string;
+      tutorExperience?: string;
       location?: string;
+      preferredLocations?: string[];
       mode?: string;
       sexPreference?: string;
       feeBudget?: string;
@@ -1611,17 +1837,68 @@ async function startServer() {
       compatibilityScore?: number;
     };
 
-    const tutor = db.tutorApplications.find((t) => t.id === body.tutorAppId);
-    if (!tutor) {
-      return res.status(404).json({ error: 'Tutor application not found.' });
-    }
-
     const now = new Date().toISOString();
+    let tutor = body.tutorAppId
+      ? db.tutorApplications.find((t) => t.id === body.tutorAppId)
+      : undefined;
     const existingParent = body.existingParentAppId
       ? db.parentApplications.find((p) => p.id === body.existingParentAppId)
       : undefined;
 
-    const cleanName = (body.parentName || '').trim() || existingParent?.parentProfile.fullName || 'Direct Parent Inquiry';
+    if (!tutor && !existingParent) {
+      return res.status(400).json({ error: 'Specify a Tutor or an existing Parent to confirm.' });
+    }
+
+    // Create phone-in Tutor application when Owner confirmed a walk-in tutor for an existing Parent
+    if (!tutor && existingParent) {
+      const locs =
+        Array.isArray(body.preferredLocations) && body.preferredLocations.length > 0
+          ? body.preferredLocations
+          : [existingParent.parentProfile.location];
+      const subjs =
+        Array.isArray(body.subjects) && body.subjects.length > 0
+          ? body.subjects
+          : Array.from(new Set(existingParent.kids.flatMap((k) => k.preferredSubjects)));
+      const days =
+        Array.isArray(body.selectedDays) && body.selectedDays.length > 0
+          ? body.selectedDays
+          : Array.from(new Set(existingParent.kids.flatMap((k) => k.selectedDays)));
+
+      tutor = {
+        id: `tapp_${crypto.randomUUID().slice(0, 8)}`,
+        userId: admin.id,
+        status: 'verified',
+        profile: {
+          fullName: (body.tutorName || '').trim() || 'Phone Inquiry Tutor (Owner Match)',
+          phone: (body.tutorPhone || '').trim() || 'Owner Logged',
+          sex: (body.tutorSex === 'male' ? 'male' : 'female') as any,
+          educationLevel: (body.tutorEducation as any) || 'college',
+          tutoringMode: (body.mode === 'online' || body.mode === 'in_person' ? body.mode : 'both') as any,
+          priorExperience: (body.tutorExperience as any) || '1_year',
+          preferredLocations: locs,
+          preferredSubjects: subjs,
+          preferredDays: days,
+          hoursPerDay: (body.hoursPerDay as any) || '2',
+          weekdaySlots: Array.isArray(body.weekdaySlots) ? body.weekdaySlots : [],
+          weekendSlots: Array.isArray(body.weekendSlots) ? body.weekendSlots : [],
+          expectedFeePerHour: (body.feeBudget as any) || '400_600',
+        },
+        academicRecords: {},
+        uploadedDocuments: [],
+        agreedToTerms: true,
+        agreedAt: now,
+        submittedAt: now,
+        updatedAt: now,
+      };
+      db.tutorApplications.unshift(tutor);
+    }
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor application not found.' });
+    }
+
+    const cleanName =
+      (body.parentName || '').trim() || existingParent?.parentProfile.fullName || 'Phone Inquiry Parent';
     const rawPhone = (body.parentPhone || '').trim();
     const normalizedPhone = rawPhone
       ? normalizeEthiopianPhone(rawPhone) || rawPhone
@@ -1638,7 +1915,8 @@ async function startServer() {
       Array.isArray(body.selectedDays) && body.selectedDays.length > 0
         ? body.selectedDays
         : tutor.profile.preferredDays;
-    const grades = Array.isArray(body.gradeLevels) && body.gradeLevels.length > 0 ? body.gradeLevels : ['grade_8'];
+    const grades =
+      Array.isArray(body.gradeLevels) && body.gradeLevels.length > 0 ? body.gradeLevels : ['grade_8'];
     const kidsCount = Math.max(1, Math.min(10, Number(body.kidsCount || grades.length || 1)));
 
     let parentApp: ParentApplication;
@@ -1681,7 +1959,9 @@ async function startServer() {
         kidsCountNumber: kidsCount,
         kids,
         tutorPreference: {
-          sex: (body.sexPreference === 'female' || body.sexPreference === 'male' ? body.sexPreference : 'any') as any,
+          sex: (body.sexPreference === 'female' || body.sexPreference === 'male'
+            ? body.sexPreference
+            : 'any') as any,
           mode: (body.mode === 'online' ? 'online' : 'in_person') as any,
         },
         agreedToTerms: true,
@@ -1692,7 +1972,7 @@ async function startServer() {
       db.parentApplications.unshift(parentApp);
     }
 
-    const matchedSubjects = subjects.filter((s) => tutor.profile.preferredSubjects.includes(s));
+    const matchedSubjects = subjects.filter((s) => tutor!.profile.preferredSubjects.includes(s));
     const match: MatchRecord = {
       id: `match_${crypto.randomUUID().slice(0, 8)}`,
       parentAppId: parentApp.id,
@@ -1719,8 +1999,12 @@ async function startServer() {
     return res.json({ match, parent: parentApp });
   });
 
-  // Build and download a 100% self-contained single index.html file (works offline via file://)
-  app.get('/api/download-single-html', async (_req, res) => {
+  // Build and download a 100% self-contained single index.html file (Owner Coordinator only)
+  app.get('/api/download-single-html', async (req, res) => {
+    const admin = getUserFromReq(req);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Coordinator / Admin access required.' });
+    }
     try {
       const singleOutDir = path.resolve(DATA_DIR, 'dist-single');
       await viteBuild({

@@ -13,8 +13,20 @@ import {
   standaloneApi,
 } from './standaloneStore';
 
-const TOKEN_STORAGE_KEY = 'askuala_session_token';
+const LEGACY_TOKEN_STORAGE_KEY = 'askuala_session_token';
 const SESSION_FILE_CACHE = new Map<string, Uint8Array>();
+
+// Keep session token strictly in JS memory (never localStorage/sessionStorage)
+let inMemoryToken: string | null = null;
+
+function clearLegacyTokenStorage() {
+  try {
+    localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore storage restriction
+  }
+}
 
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -75,25 +87,13 @@ export function isStandaloneFileMode(): boolean {
 }
 
 export function getStoredToken(): string | null {
-  try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-  return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  clearLegacyTokenStorage();
+  return inMemoryToken;
 }
 
 export function setStoredToken(token: string | null) {
-  try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-  if (token) {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } else {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-  }
+  clearLegacyTokenStorage();
+  inMemoryToken = token || null;
 }
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -171,6 +171,7 @@ export async function fetchCurrentSession(): Promise<AuthResponse | null> {
 }
 
 export async function logoutAccount(): Promise<void> {
+  SESSION_FILE_CACHE.clear();
   if (isStandaloneFileMode()) {
     standaloneApi.logout();
     setStoredToken(null);
@@ -218,7 +219,11 @@ export async function getPdfBytes(fileId: string): Promise<Uint8Array | null> {
   if (isStandaloneFileMode()) {
     return (await loadStandalonePdfBytes(fileId)) || (await ensureSampleStandalonePdf(fileId));
   }
-  const res = await fetch(`/api/uploads/pdf/${fileId}`);
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`/api/uploads/pdf/${encodeURIComponent(fileId)}`, { headers });
   if (!res.ok) return null;
   const arr = new Uint8Array(await res.arrayBuffer());
   SESSION_FILE_CACHE.set(fileId, arr);
@@ -226,9 +231,6 @@ export async function getPdfBytes(fileId: string): Promise<Uint8Array | null> {
 }
 
 export async function resolvePdfViewUrl(fileId: string): Promise<string | null> {
-  if (!isStandaloneFileMode()) {
-    return `/api/uploads/pdf/${fileId}`;
-  }
   const bytes = await getPdfBytes(fileId);
   if (!bytes) return null;
   return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }));
@@ -273,7 +275,11 @@ export async function getImageBytes(fileId: string): Promise<Uint8Array | null> 
   if (isStandaloneFileMode()) {
     return await loadStandalonePdfBytes(fileId);
   }
-  const res = await fetch(`/api/uploads/image/${fileId}`);
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`/api/uploads/image/${encodeURIComponent(fileId)}`, { headers });
   if (!res.ok) return null;
   const arr = new Uint8Array(await res.arrayBuffer());
   SESSION_FILE_CACHE.set(fileId, arr);
@@ -284,9 +290,6 @@ export async function resolveImageViewUrl(
   fileId: string,
   mimeType = 'image/jpeg'
 ): Promise<string | null> {
-  if (!isStandaloneFileMode()) {
-    return `/api/uploads/image/${fileId}`;
-  }
   const bytes = await getImageBytes(fileId);
   if (!bytes) return null;
   return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mimeType }));
@@ -427,11 +430,17 @@ export async function resetAdminUserPassword(
 }
 
 export interface QuickConfirmMatchPayload {
-  tutorAppId: string;
+  tutorAppId?: string;
   existingParentAppId?: string;
-  parentName: string;
+  parentName?: string;
   parentPhone?: string;
+  tutorName?: string;
+  tutorPhone?: string;
+  tutorEducation?: string;
+  tutorSex?: string;
+  tutorExperience?: string;
   location?: string;
+  preferredLocations?: string[];
   mode?: string;
   sexPreference?: string;
   feeBudget?: string;
@@ -455,6 +464,26 @@ export async function quickConfirmAdminMatch(
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export async function downloadSingleHtml(): Promise<void> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch('/api/download-single-html', { headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Unable to download single index.html');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'index.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function unlockOwnerWithPasscode(passcode: string): Promise<AuthResponse> {

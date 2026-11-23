@@ -152,6 +152,20 @@ export const EDUCATION_LEVEL_LABELS: Record<string, string> = {
   certified_teacher: 'Certified Teacher',
 };
 
+export const SUPPORT_PHONE = '0908998412';
+
+export function formatEsslceLabel(records?: {
+  esslceScale?: '600' | '700' | '';
+  esslceScore?: string;
+  esslceOutOf600?: string;
+}): string {
+  if (!records) return '';
+  const score = (records.esslceScore || records.esslceOutOf600 || '').trim();
+  if (!score) return '';
+  const scale = records.esslceScale === '700' ? '700' : '600';
+  return `${score}/${scale}`;
+}
+
 export interface RequiredDocumentSpec {
   recordKey: string;
   label: string;
@@ -174,18 +188,18 @@ export function getRequiredAcademicDocuments(level: string): RequiredDocumentSpe
     case 'college':
       return [
         { recordKey: 'grade_9_12_transcript', label: 'Grades 9–12 Complete Transcripts (PDF)', helper: 'Combined or scanned transcript verifying ≥ 87% per grade' },
-        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying score converted out of 600' },
+        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying score (≥ 450/600 or ≥ 525/700)' },
         { recordKey: 'college_id_or_grade_report', label: 'University / College Grade Report or Student ID (PDF)', helper: 'Proof of current college enrollment' },
       ];
     case 'bachelors':
       return [
         { recordKey: 'graduation_cgpa_transcript', label: "Bachelor's Degree & Official CGPA Transcript (PDF)", helper: 'Verifying graduation CGPA' },
-        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying ESSLCE score' },
+        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying ESSLCE score (≥ 450/600 or ≥ 525/700)' },
       ];
     case 'certified_teacher':
       return [
         { recordKey: 'teaching_cert_and_cgpa', label: 'Teaching Certificate & Degree CGPA Transcript (PDF)', helper: 'Verifying teacher certification and graduation CGPA' },
-        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying ESSLCE score' },
+        { recordKey: 'esslce_certificate', label: 'ESSLCE National Exam Result Certificate (PDF)', helper: 'Verifying ESSLCE score (≥ 450/600 or ≥ 525/700)' },
       ];
     default:
       return [];

@@ -87,15 +87,33 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     priorExperience: existingApplication?.profile.priorExperience || '',
     preferredLocations: existingApplication?.profile.preferredLocations || [],
     preferredSubjects: existingApplication?.profile.preferredSubjects || [],
+    daysPerWeek:
+      existingApplication?.profile.daysPerWeek ??
+      (existingApplication?.profile.preferredDays?.length
+        ? existingApplication.profile.preferredDays.length
+        : undefined),
     preferredDays: existingApplication?.profile.preferredDays || [],
+    hoursPerDay: existingApplication?.profile.hoursPerDay || '',
     weekdaySlots: existingApplication?.profile.weekdaySlots || [],
     weekendSlots: existingApplication?.profile.weekendSlots || [],
     expectedFeePerHour: mapLegacyFee(existingApplication?.profile.expectedFeePerHour),
   }));
 
-  const [academicRecords, setAcademicRecords] = useState<TutorAcademicRecords>(
-    existingApplication?.academicRecords || {}
-  );
+  const [academicRecords, setAcademicRecords] = useState<TutorAcademicRecords>(() => {
+    const rec = existingApplication?.academicRecords || {};
+    const inferredScale =
+      rec.esslceScale || (rec.esslceOutOf600 ? '600' : '');
+    const inferredScore = rec.esslceScore ?? rec.esslceOutOf600 ?? '';
+    return {
+      ...rec,
+      esslceScale: inferredScale,
+      esslceScore: inferredScore,
+    };
+  });
+
+  const [daysCapWarning, setDaysCapWarning] = useState<string | null>(null);
+  const [weekdayCapWarning, setWeekdayCapWarning] = useState<string | null>(null);
+  const [weekendCapWarning, setWeekendCapWarning] = useState<string | null>(null);
 
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedPdfDoc[]>(
     existingApplication?.uploadedDocuments || []
@@ -217,14 +235,26 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
 
   const esslceViolation = useMemo(() => {
     if (!requiresEsslce) return null;
-    const raw = academicRecords.esslceOutOf600;
-    if (!raw || raw.trim() === '') return null;
+    const scale = academicRecords.esslceScale || (academicRecords.esslceOutOf600 ? '600' : '');
+    const raw = academicRecords.esslceScore ?? academicRecords.esslceOutOf600;
+    if (!scale || !raw || raw.trim() === '') return null;
     const num = Number(raw);
+    if (scale === '700') {
+      if (Number.isNaN(num) || num < 525 || num > 700) {
+        return `ESSLCE Score: ${raw} / 700 (must be 525 to 700 — scores below 525 out of 700 are automatically blocked)`;
+      }
+      return null;
+    }
     if (Number.isNaN(num) || num < 450 || num > 600) {
-      return `ESSLCE Score: ${raw} (must be 450 to 600 — scores below 450 are automatically blocked)`;
+      return `ESSLCE Score: ${raw} / 600 (must be 450 to 600 — scores below 450 out of 600 are automatically blocked)`;
     }
     return null;
-  }, [requiresEsslce, academicRecords.esslceOutOf600]);
+  }, [
+    requiresEsslce,
+    academicRecords.esslceScale,
+    academicRecords.esslceScore,
+    academicRecords.esslceOutOf600,
+  ]);
 
   const hasAcademicBlock = below87Violations.length > 0 || Boolean(esslceViolation);
 
@@ -279,6 +309,43 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     if (field === 'weekendSlots' || field === 'preferredDays') {
       clearFieldError('schedule_weekend');
     }
+
+    if (field === 'preferredDays') {
+      const already = profile.preferredDays.includes(id);
+      const limit = profile.daysPerWeek || 0;
+      if (!already && limit > 0 && profile.preferredDays.length >= limit) {
+        setDaysCapWarning(
+          `Blocked: You selected ${limit} day${limit > 1 ? 's' : ''} per week. Please edit "How many days per week?" above first before selecting more days.`
+        );
+        return;
+      }
+      setDaysCapWarning(null);
+    }
+
+    if (field === 'weekdaySlots') {
+      const already = profile.weekdaySlots.includes(id);
+      const limit = Number(profile.hoursPerDay || 0);
+      if (!already && limit > 0 && profile.weekdaySlots.length >= limit) {
+        setWeekdayCapWarning(
+          `Blocked: You selected ${limit} hour${limit > 1 ? 's' : ''} per day. You cannot choose more than ${limit} weekday slot${limit > 1 ? 's' : ''} — edit "Hours per day" above first.`
+        );
+        return;
+      }
+      setWeekdayCapWarning(null);
+    }
+
+    if (field === 'weekendSlots') {
+      const already = profile.weekendSlots.includes(id);
+      const limit = Number(profile.hoursPerDay || 0);
+      if (!already && limit > 0 && profile.weekendSlots.length >= limit) {
+        setWeekendCapWarning(
+          `Blocked: You selected ${limit} hour${limit > 1 ? 's' : ''} per day. You cannot choose more than ${limit} weekend slot${limit > 1 ? 's' : ''} — edit "Hours per day" above first.`
+        );
+        return;
+      }
+      setWeekendCapWarning(null);
+    }
+
     setProfile((prev) => {
       const list = prev[field];
       const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -332,20 +399,46 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
       fields.add('preferredSubjects');
       messages.push('Select at least one Preferred Subject.');
     }
-    if (profile.preferredDays.length === 0) {
+
+    if (!profile.daysPerWeek || profile.daysPerWeek < 1) {
+      fields.add('daysPerWeek');
+      messages.push('Select how many days per week (1–7) you can tutor.');
+    } else if (profile.preferredDays.length === 0) {
       fields.add('preferredDays');
-      messages.push('Select at least one Preferred Day.');
+      messages.push(`Select your ${profile.daysPerWeek} preferred day(s).`);
+    } else if (profile.preferredDays.length !== profile.daysPerWeek) {
+      fields.add('preferredDays');
+      messages.push(
+        `You chose ${profile.daysPerWeek} day(s) per week, so select exactly ${profile.daysPerWeek} preferred day(s) (currently ${profile.preferredDays.length}) or edit "Days per Week".`
+      );
+    }
+
+    const hourLimit = Number(profile.hoursPerDay || 0);
+    if (!profile.hoursPerDay || !hourLimit) {
+      fields.add('hoursPerDay');
+      messages.push('Select how many hours per day (1, 2, or 3) before choosing schedule slots.');
     } else {
       if (hasSelectedWeekday && profile.weekdaySlots.length === 0) {
         fields.add('schedule_weekday');
         messages.push(
           'You selected Monday–Friday day(s): please select at least one Weekday Schedule time slot.'
         );
+      } else if (profile.weekdaySlots.length > hourLimit) {
+        fields.add('schedule_weekday');
+        messages.push(
+          `Weekday Schedule cannot exceed ${hourLimit} time slot(s) based on your Hours per Day choice.`
+        );
       }
+
       if (hasSelectedWeekend && profile.weekendSlots.length === 0) {
         fields.add('schedule_weekend');
         messages.push(
           'You selected Saturday/Sunday: please select at least one Weekend Schedule time slot.'
+        );
+      } else if (profile.weekendSlots.length > hourLimit) {
+        fields.add('schedule_weekend');
+        messages.push(
+          `Weekend Schedule cannot exceed ${hourLimit} time slot(s) based on your Hours per Day choice.`
         );
       }
     }
@@ -383,15 +476,24 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
     }
 
     if (requiresEsslce) {
-      const rawEsslce = academicRecords.esslceOutOf600;
+      const scale = academicRecords.esslceScale || (academicRecords.esslceOutOf600 ? '600' : '');
+      const rawEsslce = academicRecords.esslceScore ?? academicRecords.esslceOutOf600;
       const e = Number(rawEsslce);
-      if (!rawEsslce || rawEsslce.trim() === '' || Number.isNaN(e)) {
+      if (!scale) {
         fields.add('esslceOutOf600');
-        messages.push('ESSLCE National Exam Score (out of 600) is required.');
-      } else if (e < 450 || e > 600) {
+        messages.push('Select your ESSLCE total scale first (Out of 600 or Out of 700).');
+      } else if (!rawEsslce || rawEsslce.trim() === '' || Number.isNaN(e)) {
+        fields.add('esslceOutOf600');
+        messages.push(`ESSLCE National Exam Score (out of ${scale}) is required.`);
+      } else if (scale === '700' && (e < 525 || e > 700)) {
         fields.add('esslceOutOf600');
         messages.push(
-          `Automatic Block: ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are not eligible.`
+          `Automatic Block: ESSLCE Score (${rawEsslce} / 700) must be 525 or above (525–700). Applicants below 525 out of 700 are not eligible.`
+        );
+      } else if (scale === '600' && (e < 450 || e > 600)) {
+        fields.add('esslceOutOf600');
+        messages.push(
+          `Automatic Block: ESSLCE Score (${rawEsslce} / 600) must be 450 or above (450–600). Applicants below 450 out of 600 are not eligible.`
         );
       }
     }
@@ -1206,113 +1308,258 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                     </div>
                   </fieldset>
 
-                  {/* Preferred Days */}
-                  <fieldset
-                    data-field-error={isErr('preferredDays') ? 'true' : undefined}
-                    className={`p-4 rounded-xl bg-[#f0fdf4] border ${
-                      isErr('preferredDays') ? 'field-error' : 'border-[#bbf7d0]'
-                    }`}
-                  >
-                    <legend className="text-sm font-bold text-[#14532d] mb-2">
-                      Preferred Days *
-                    </legend>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                      {DAYS_OF_WEEK.map((day) => {
-                        const checked = profile.preferredDays.includes(day.id);
-                        return (
-                          <label
-                            key={day.id}
-                            className={`flex items-center justify-center px-3 py-2 rounded-lg border text-sm cursor-pointer font-bold ${
-                              checked
-                                ? 'bg-[#14532d] text-white border-[#14532d]'
-                                : 'bg-white text-[#0f172a] border-[#cbd5e1]'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleMulti('preferredDays', day.id)}
-                              className="sr-only"
-                            />
-                            <span>{day.en}</span>
-                          </label>
-                        );
-                      })}
+                  {/* How Many Days Per Week -> Preferred Days */}
+                  <div className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] space-y-4">
+                    <div data-field-error={isErr('daysPerWeek') ? 'true' : undefined}>
+                      <label
+                        htmlFor="tutor-days-per-week"
+                        className="block text-sm font-bold text-[#14532d] mb-1.5"
+                      >
+                        How many days per week can you tutor? *
+                      </label>
+                      <select
+                        id="tutor-days-per-week"
+                        aria-invalid={isErr('daysPerWeek')}
+                        value={profile.daysPerWeek || ''}
+                        onChange={(e) => {
+                          clearFieldError('daysPerWeek');
+                          clearFieldError('preferredDays');
+                          setDaysCapWarning(null);
+                          const val = e.target.value ? Number(e.target.value) : undefined;
+                          setProfile((prev) => ({
+                            ...prev,
+                            daysPerWeek: val,
+                          }));
+                        }}
+                        className={`w-full sm:w-80 min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white font-semibold tabular-nums ${
+                          isErr('daysPerWeek') ? 'field-error' : 'border-[#cbd5e1]'
+                        }`}
+                      >
+                        <option value="">-- Select number of days per week --</option>
+                        {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                          <option key={d} value={d}>
+                            {d} day{d > 1 ? 's' : ''} per week
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  </fieldset>
 
-                  {/* Preferred Schedule (Ethiopian Time) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl">
-                    <fieldset
-                      data-field-error={isErr('schedule_weekday') ? 'true' : undefined}
-                      className={`p-4 rounded-xl bg-[#f0fdf4] border-2 ${
-                        isErr('schedule_weekday') ? 'field-error' : 'border-[#bbf7d0]'
-                      }`}
-                    >
-                      <legend className="text-sm font-bold text-[#14532d] mb-2">
-                        Weekday Schedule (Ethiopian Time)
-                        {hasSelectedWeekday ? ' * (Required for selected Mon–Fri day)' : ''}
-                      </legend>
-                      <div className="space-y-2">
-                        {WEEKDAY_SLOTS.map((slot) => {
-                          const checked = profile.weekdaySlots.includes(slot.id);
-                          return (
-                            <label
-                              key={slot.id}
-                              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm cursor-pointer font-semibold tabular-nums ${
-                                checked
-                                  ? 'bg-[#14532d] text-white border-[#14532d]'
-                                  : 'bg-white text-[#0f172a] border-[#cbd5e1]'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleMulti('weekdaySlots', slot.id)}
-                                className="sr-only"
-                              />
-                              <span>{slot.en}</span>
-                              <span>{checked ? '✓' : ''}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
+                    {!profile.daysPerWeek ? (
+                      <p className="text-xs font-semibold text-[#15803d] bg-white px-3.5 py-2.5 rounded-lg border border-[#bbf7d0]">
+                        Select &ldquo;How many days per week?&rdquo; above first — the days of the
+                        week will appear here automatically.
+                      </p>
+                    ) : (
+                      <fieldset
+                        data-field-error={isErr('preferredDays') ? 'true' : undefined}
+                        className={`pt-2 border-t border-[#bbf7d0] rounded-lg ${
+                          isErr('preferredDays') ? 'field-error p-2' : ''
+                        }`}
+                      >
+                        <legend className="text-sm font-bold text-[#14532d] mb-2">
+                          Preferred Days * (Choose {profile.daysPerWeek}:{' '}
+                          {profile.preferredDays.length}/{profile.daysPerWeek} selected)
+                        </legend>
+                        {profile.preferredDays.length > profile.daysPerWeek && (
+                          <div
+                            role="alert"
+                            className="mb-2.5 p-2.5 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
+                          >
+                            You currently have {profile.preferredDays.length} days checked, which
+                            exceeds your {profile.daysPerWeek} day(s)/week setting. Uncheck extra
+                            days or raise &ldquo;How many days per week?&rdquo; above.
+                          </div>
+                        )}
+                        {daysCapWarning && (
+                          <div
+                            role="alert"
+                            className="mb-2.5 p-2.5 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-2"
+                          >
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>{daysCapWarning}</span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                          {DAYS_OF_WEEK.map((day) => {
+                            const checked = profile.preferredDays.includes(day.id);
+                            return (
+                              <label
+                                key={day.id}
+                                className={`flex items-center justify-center px-3 py-2 rounded-lg border text-sm cursor-pointer font-bold ${
+                                  checked
+                                    ? 'bg-[#14532d] text-white border-[#14532d]'
+                                    : 'bg-white text-[#0f172a] border-[#cbd5e1] hover:border-[#22c55e]'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleMulti('preferredDays', day.id)}
+                                  className="sr-only"
+                                />
+                                <span>{day.en}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    )}
+                  </div>
 
-                    <fieldset
-                      data-field-error={isErr('schedule_weekend') ? 'true' : undefined}
-                      className={`p-4 rounded-xl bg-[#f0fdf4] border-2 ${
-                        isErr('schedule_weekend') ? 'field-error' : 'border-[#bbf7d0]'
-                      }`}
-                    >
-                      <legend className="text-sm font-bold text-[#14532d] mb-2">
-                        Weekend Schedule (Ethiopian Time)
-                        {hasSelectedWeekend ? ' * (Required for selected Sat/Sun)' : ''}
-                      </legend>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {WEEKEND_SLOTS.map((slot) => {
-                          const checked = profile.weekendSlots.includes(slot.id);
-                          return (
-                            <label
-                              key={slot.id}
-                              className={`flex items-center justify-center px-3 py-2.5 rounded-lg border text-xs sm:text-sm cursor-pointer font-semibold tabular-nums ${
-                                checked
-                                  ? 'bg-[#14532d] text-white border-[#14532d]'
-                                  : 'bg-white text-[#0f172a] border-[#cbd5e1]'
-                              }`}
+                  {/* How Many Hours Per Day -> Preferred Schedule (Ethiopian Time) */}
+                  <div className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] space-y-4">
+                    <div data-field-error={isErr('hoursPerDay') ? 'true' : undefined}>
+                      <label
+                        htmlFor="tutor-hours-per-day"
+                        className="block text-sm font-bold text-[#14532d] mb-1.5"
+                      >
+                        How many hours per day? *
+                      </label>
+                      <select
+                        id="tutor-hours-per-day"
+                        aria-invalid={isErr('hoursPerDay')}
+                        value={profile.hoursPerDay || ''}
+                        onChange={(e) => {
+                          clearFieldError('hoursPerDay');
+                          clearFieldError('schedule_weekday');
+                          clearFieldError('schedule_weekend');
+                          setWeekdayCapWarning(null);
+                          setWeekendCapWarning(null);
+                          setProfile({
+                            ...profile,
+                            hoursPerDay: e.target.value as '1' | '2' | '3' | '',
+                          });
+                        }}
+                        className={`w-full sm:w-80 min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white font-semibold tabular-nums ${
+                          isErr('hoursPerDay') ? 'field-error' : 'border-[#cbd5e1]'
+                        }`}
+                      >
+                        <option value="">-- Select hours per day (1, 2, or 3) --</option>
+                        <option value="1">1 hour per day</option>
+                        <option value="2">2 hours per day</option>
+                        <option value="3">3 hours per day</option>
+                      </select>
+                    </div>
+
+                    {!profile.hoursPerDay ? (
+                      <p className="text-xs font-semibold text-[#15803d] bg-white px-3.5 py-2.5 rounded-lg border border-[#bbf7d0]">
+                        Select &ldquo;How many hours per day? (1, 2, or 3)&rdquo; above first
+                        &mdash; your Weekday and Weekend Ethiopian Time schedules will appear here.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl pt-2 border-t border-[#bbf7d0]">
+                        <fieldset
+                          data-field-error={isErr('schedule_weekday') ? 'true' : undefined}
+                          className={`p-4 rounded-xl bg-white border-2 ${
+                            isErr('schedule_weekday') ? 'field-error' : 'border-[#bbf7d0]'
+                          }`}
+                        >
+                          <legend className="text-sm font-bold text-[#14532d] mb-2">
+                            Weekday Schedule (Ethiopian Time &mdash; max {profile.hoursPerDay} slot
+                            {profile.hoursPerDay === '1' ? '' : 's'})
+                            {hasSelectedWeekday ? ' *' : ''}
+                          </legend>
+                          {profile.weekdaySlots.length > Number(profile.hoursPerDay) && (
+                            <div
+                              role="alert"
+                              className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
                             >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleMulti('weekendSlots', slot.id)}
-                                className="sr-only"
-                              />
-                              <span>{slot.en.replace(' (Ethiopian Time)', '')}</span>
-                            </label>
-                          );
-                        })}
+                              You have {profile.weekdaySlots.length} weekday slots selected, which
+                              exceeds your {profile.hoursPerDay} hour(s)/day limit. Uncheck extra
+                              slots or raise &ldquo;Hours per day&rdquo; above.
+                            </div>
+                          )}
+                          {weekdayCapWarning && (
+                            <div
+                              role="alert"
+                              className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-1.5"
+                            >
+                              <AlertTriangle className="w-4 h-4 shrink-0" />
+                              <span>{weekdayCapWarning}</span>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            {WEEKDAY_SLOTS.map((slot) => {
+                              const checked = profile.weekdaySlots.includes(slot.id);
+                              return (
+                                <label
+                                  key={slot.id}
+                                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm cursor-pointer font-semibold tabular-nums ${
+                                    checked
+                                      ? 'bg-[#14532d] text-white border-[#14532d]'
+                                      : 'bg-[#f8fafc] text-[#0f172a] border-[#cbd5e1] hover:border-[#22c55e]'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleMulti('weekdaySlots', slot.id)}
+                                    className="sr-only"
+                                  />
+                                  <span>{slot.en}</span>
+                                  <span>{checked ? '✓' : ''}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+
+                        <fieldset
+                          data-field-error={isErr('schedule_weekend') ? 'true' : undefined}
+                          className={`p-4 rounded-xl bg-white border-2 ${
+                            isErr('schedule_weekend') ? 'field-error' : 'border-[#bbf7d0]'
+                          }`}
+                        >
+                          <legend className="text-sm font-bold text-[#14532d] mb-2">
+                            Weekend Schedule (Ethiopian Time &mdash; max {profile.hoursPerDay} slot
+                            {profile.hoursPerDay === '1' ? '' : 's'})
+                            {hasSelectedWeekend ? ' *' : ''}
+                          </legend>
+                          {profile.weekendSlots.length > Number(profile.hoursPerDay) && (
+                            <div
+                              role="alert"
+                              className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
+                            >
+                              You have {profile.weekendSlots.length} weekend slots selected, which
+                              exceeds your {profile.hoursPerDay} hour(s)/day limit. Uncheck extra
+                              slots or raise &ldquo;Hours per day&rdquo; above.
+                            </div>
+                          )}
+                          {weekendCapWarning && (
+                            <div
+                              role="alert"
+                              className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-1.5"
+                            >
+                              <AlertTriangle className="w-4 h-4 shrink-0" />
+                              <span>{weekendCapWarning}</span>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {WEEKEND_SLOTS.map((slot) => {
+                              const checked = profile.weekendSlots.includes(slot.id);
+                              return (
+                                <label
+                                  key={slot.id}
+                                  className={`flex items-center justify-center px-3 py-2.5 rounded-lg border text-xs sm:text-sm cursor-pointer font-semibold tabular-nums ${
+                                    checked
+                                      ? 'bg-[#14532d] text-white border-[#14532d]'
+                                      : 'bg-[#f8fafc] text-[#0f172a] border-[#cbd5e1] hover:border-[#22c55e]'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleMulti('weekendSlots', slot.id)}
+                                    className="sr-only"
+                                  />
+                                  <span>{slot.en.replace(' (Ethiopian Time)', '')}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
                       </div>
-                    </fieldset>
+                    )}
                   </div>
                 </div>
               )}
@@ -1325,8 +1572,9 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                       Instruction: Entering scores for{' '}
                       <strong>{EDUCATION_LEVEL_LABELS[profile.educationLevel]}</strong>. Transcript
                       average for EACH grade must be <strong>87 or above</strong>, and ESSLCE
-                      score must be <strong>450 or above</strong> (for college &amp; graduates).
-                      Scores below the threshold are automatically blocked.
+                      score must be <strong>&ge; 450/600</strong> or <strong>&ge; 525/700</strong>{' '}
+                      (for college &amp; graduates). Scores below the threshold are automatically
+                      blocked.
                     </span>
                   </div>
 
@@ -1405,36 +1653,97 @@ export const TutorPortal: React.FC<TutorPortalProps> = ({
                     )}
 
                     {requiresEsslce && (() => {
+                      const scale =
+                        academicRecords.esslceScale ||
+                        (academicRecords.esslceOutOf600 ? '600' : '');
+                      const scoreVal =
+                        academicRecords.esslceScore ?? academicRecords.esslceOutOf600 ?? '';
                       const esslceFlagged = Boolean(esslceViolation) || isErr('esslceOutOf600');
                       return (
-                        <div data-field-error={esslceFlagged ? 'true' : undefined}>
-                          <label
-                            htmlFor="rec-esslce"
-                            className="block text-sm font-bold text-[#14532d] mb-1"
-                          >
-                            {profile.educationLevel === 'college'
-                              ? 'ESSLCE Score Converted Out of 600 * (≥ 450 required)'
-                              : 'ESSLCE National Exam Score (out of 600) * (≥ 450 required)'}
-                          </label>
-                          <input
-                            id="rec-esslce"
-                            type="number"
-                            min="0"
-                            max="600"
-                            aria-invalid={esslceFlagged}
-                            value={academicRecords.esslceOutOf600 || ''}
-                            onChange={(e) => {
-                              clearFieldError('esslceOutOf600');
-                              setAcademicRecords({
-                                ...academicRecords,
-                                esslceOutOf600: e.target.value,
-                              });
-                            }}
-                            placeholder="450 – 600"
-                            className={`w-full min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white tabular-nums ${
-                              esslceFlagged ? 'field-error' : 'border-[#cbd5e1]'
-                            }`}
-                          />
+                        <div
+                          data-field-error={esslceFlagged ? 'true' : undefined}
+                          className={`sm:col-span-2 p-4 rounded-xl bg-[#f0fdf4] border-2 space-y-3 ${
+                            esslceFlagged ? 'field-error' : 'border-[#bbf7d0]'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-[#14532d] mb-2">
+                              ESSLCE National Exam Total Scale * (Select Out of 600 or Out of 700
+                              first)
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {(
+                                [
+                                  { id: '600' as const, title: 'Out of 600', rule: 'Minimum 450 required' },
+                                  { id: '700' as const, title: 'Out of 700', rule: 'Minimum 525 required' },
+                                ]
+                              ).map((opt) => {
+                                const selected = scale === opt.id;
+                                return (
+                                  <label
+                                    key={opt.id}
+                                    className={`p-3 rounded-xl border-2 cursor-pointer flex items-center justify-between font-bold ${
+                                      selected
+                                        ? 'bg-[#14532d] text-white border-[#14532d]'
+                                        : 'bg-white text-[#14532d] border-[#cbd5e1] hover:border-[#22c55e]'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="esslce-scale"
+                                      checked={selected}
+                                      onChange={() => {
+                                        clearFieldError('esslceOutOf600');
+                                        setAcademicRecords((prev) => ({
+                                          ...prev,
+                                          esslceScale: opt.id,
+                                          esslceOutOf600: opt.id === '600' ? (prev.esslceScore || '') : '',
+                                        }));
+                                      }}
+                                      className="sr-only"
+                                    />
+                                    <span>{opt.title}</span>
+                                    <span className="text-xs opacity-90">{opt.rule}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {scale && (
+                            <div>
+                              <label
+                                htmlFor="rec-esslce"
+                                className="block text-sm font-bold text-[#14532d] mb-1"
+                              >
+                                {scale === '700'
+                                  ? 'Enter Your ESSLCE Score (out of 700) * (≥ 525 required)'
+                                  : 'Enter Your ESSLCE Score (out of 600) * (≥ 450 required)'}
+                              </label>
+                              <input
+                                id="rec-esslce"
+                                type="number"
+                                min="0"
+                                max={scale === '700' ? 700 : 600}
+                                aria-invalid={esslceFlagged}
+                                value={scoreVal}
+                                onChange={(e) => {
+                                  clearFieldError('esslceOutOf600');
+                                  const nextScore = e.target.value;
+                                  setAcademicRecords((prev) => ({
+                                    ...prev,
+                                    esslceScale: scale as '600' | '700',
+                                    esslceScore: nextScore,
+                                    esslceOutOf600: scale === '600' ? nextScore : '',
+                                  }));
+                                }}
+                                placeholder={scale === '700' ? '525 – 700' : '450 – 600'}
+                                className={`w-full sm:w-80 min-h-[44px] px-3.5 py-2 rounded-lg border-[1.5px] bg-white tabular-nums ${
+                                  esslceFlagged ? 'field-error' : 'border-[#cbd5e1]'
+                                }`}
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })()}

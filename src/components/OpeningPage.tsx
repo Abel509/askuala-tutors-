@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpenCheck, LogIn, UserPlus } from 'lucide-react';
-import heroLadyImg from '../assets/images/askuala_hero_young_lady_1795380743421.jpg';
+import { BookOpenCheck, LogIn, PhoneCall, UserPlus } from 'lucide-react';
+import heroLadyImg from '../assets/images/askuala_lady_teaching_smiling_1795443769885.jpg';
+import { SUPPORT_PHONE } from '../data/catalog';
 import type { SiteMode, UserAccount, UserRole } from '../types/app';
 
 interface OpeningPageProps {
@@ -42,18 +43,19 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
     >
       {/* Main Architectural Hero Card */}
       <div className="bg-white rounded-2xl overflow-hidden border border-[#14532d]/20 shadow-2xl grid grid-cols-1 lg:grid-cols-12 items-stretch">
-        {/* Left: Editorial Young Ethiopian Lady Portrait + Graphic Frame */}
+        {/* Left: Editorial Young Ethiopian Lady Teaching Kids Portrait */}
         <div className="lg:col-span-6 relative bg-[#0f3d21] min-h-[380px] lg:min-h-[540px] overflow-hidden">
           {!imgError ? (
             <>
               <img
                 src={imgSrc}
-                alt="Young Ethiopian scholar and home tutor holding a leather-bound notebook in sunlit study"
+                alt="Young Ethiopian lady tutor joyfully teaching two smiling school children"
                 referrerPolicy="no-referrer"
+                decoding="async"
+                fetchPriority="high"
                 onError={() => setImgError(true)}
                 className="w-full h-full object-cover object-top lg:absolute lg:inset-0"
               />
-              {/* Subtle warm-gold & emerald editorial graphic border overlay (no text, no face obstruction) */}
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-4 border border-[#eab308]/45 rounded-xl"
@@ -74,13 +76,11 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
           )}
         </div>
 
-        {/* Right: Clean Bilingual Entry (Parents & Tutors Together on Hub, or Dedicated) */}
+        {/* Right: Clean Bilingual Entry */}
         <div className="lg:col-span-6 p-7 sm:p-10 lg:p-12 flex flex-col justify-center bg-white">
           <p className="text-xs font-semibold tracking-wider text-[#15803d] mb-2">
             {isParentOnly
               ? 'አዲስ አበባ · በአካል እና በኦንላይን አስጠኚ'
-              : isTutorOnly
-              ? 'Addis Ababa · Home & Online Tutoring'
               : 'Addis Ababa · Home & Online Tutoring'}
           </p>
 
@@ -92,7 +92,7 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
             {isParentOnly ? '— የወላጆች ፖርታል' : 'Tutors'}
           </h1>
 
-          <p className="text-sm sm:text-base text-[#475569] leading-relaxed mb-7 max-w-lg">
+          <p className="text-sm sm:text-base text-[#475569] leading-relaxed mb-6 max-w-lg">
             {isParentOnly
               ? 'ለልጆችዎ ብቁ እና የተረጋገጡ አስጠኚዎችን ለማግኘት አካውንት ይፍጠሩ ወይም ይግቡ።'
               : isTutorOnly
@@ -147,7 +147,7 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
               </button>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Portal 1: For Parents (Amharic) */}
               <section
                 aria-label="For Parents"
@@ -213,6 +213,41 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
               </section>
             </div>
           )}
+
+          {/* Support / Forgot Password Phone Callout */}
+          <div className="mt-5 p-3.5 rounded-xl bg-[#f0fdf4] border border-[#22c55e] flex items-start gap-2.5 text-xs sm:text-sm text-[#14532d]">
+            <PhoneCall className="w-4 h-4 text-[#15803d] shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="space-y-0.5">
+              {isParentOnly ? (
+                <p className="font-amharic font-semibold">
+                  የይለፍ ቃልዎን ከረሱ ወይም ተጨማሪ መረጃ ከፈለጉ እባክዎ በስልክ ቁጥር{' '}
+                  <a
+                    href={`tel:${SUPPORT_PHONE}`}
+                    className="font-bold underline tabular-nums text-[#14532d]"
+                  >
+                    {SUPPORT_PHONE}
+                  </a>{' '}
+                  ይደውሉ።
+                </p>
+              ) : (
+                <>
+                  <p className="font-semibold">
+                    Forgot your password or need further information? Contact{' '}
+                    <a
+                      href={`tel:${SUPPORT_PHONE}`}
+                      className="font-bold underline tabular-nums text-[#14532d]"
+                    >
+                      {SUPPORT_PHONE}
+                    </a>
+                    .
+                  </p>
+                  <p className="font-amharic text-xs text-[#15803d] font-semibold">
+                    የይለፍ ቃልዎን ከረሱ ወይም ተጨማሪ መረጃ ከፈለጉ በ {SUPPORT_PHONE} ይደውሉ።
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

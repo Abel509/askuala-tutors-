@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Lock, PhoneCall } from 'lucide-react';
+import { SUPPORT_PHONE } from './data/catalog';
 import { AdminConsole } from './components/AdminConsole';
 import { AuthModal } from './components/AuthModal';
 import { OpeningPage } from './components/OpeningPage';
@@ -366,6 +367,33 @@ export default function App() {
               {isAmharicHeader
                 ? 'ለልጆችዎ ብቁ አስጠኚዎች · Verified Home & Online Tutors'
                 : 'ለልጆችዎ ብቁ አስጠኚዎች · Empowering Ethiopian Scholars to Teach'}
+            </p>
+            <p className="text-xs text-[#14532d] font-semibold flex flex-wrap items-center gap-1.5 pt-0.5">
+              <PhoneCall className="w-3.5 h-3.5 text-[#15803d] shrink-0" aria-hidden="true" />
+              <span>
+                {isAmharicHeader ? (
+                  <>
+                    የይለፍ ቃልዎን ከረሱ ወይም ተጨማሪ መረጃ ከፈለጉ በ{' '}
+                    <a
+                      href={`tel:${SUPPORT_PHONE}`}
+                      className="font-bold underline tabular-nums"
+                    >
+                      {SUPPORT_PHONE}
+                    </a>{' '}
+                    ይደውሉ
+                  </>
+                ) : (
+                  <>
+                    Forgot password or need further information? Contact{' '}
+                    <a
+                      href={`tel:${SUPPORT_PHONE}`}
+                      className="font-bold underline tabular-nums"
+                    >
+                      {SUPPORT_PHONE}
+                    </a>
+                  </>
+                )}
+              </span>
             </p>
           </div>
 

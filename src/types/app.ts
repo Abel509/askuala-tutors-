@@ -48,7 +48,9 @@ export interface TutorProfileData {
   priorExperience: PriorExperience | '';
   preferredLocations: string[];
   preferredSubjects: string[];
+  daysPerWeek?: number;
   preferredDays: string[];
+  hoursPerDay?: '1' | '2' | '3' | '';
   weekdaySlots: string[];
   weekendSlots: string[];
   expectedFeePerHour: FeeTier | '';
@@ -59,6 +61,8 @@ export interface TutorAcademicRecords {
   grade10Avg?: string;
   grade11Avg?: string;
   grade12Avg?: string;
+  esslceScale?: '600' | '700' | '';
+  esslceScore?: string;
   esslceOutOf600?: string;
   graduationCgpa?: string;
 }
@@ -89,6 +93,7 @@ export type KidSubjectStatus = 'basic' | 'medium' | 'advanced';
 export interface KidProfileItem {
   id: string;
   gradeLevel: string;
+  daysPerWeek?: number;
   selectedDays: string[];
   hoursPerDay: '1' | '2' | '3' | '';
   weekdaySlots: string[];

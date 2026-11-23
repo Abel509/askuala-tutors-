@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  PhoneCall,
   RefreshCw,
   ShieldAlert,
 } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
   evaluatePasswordStrength,
   normalizeEthiopianPhone,
   suggestStrong8CharPassword,
+  SUPPORT_PHONE,
 } from '../data/catalog';
 import { loginAccount, registerAccount, type AuthResponse } from '../utils/api';
 import type { UserRole } from '../types/app';
@@ -445,6 +447,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               : 'Sign In →'}
           </button>
         </form>
+
+        <div className="mt-5 p-3.5 rounded-xl bg-[#f0fdf4] border border-[#22c55e] flex items-start gap-2.5 text-xs sm:text-sm text-[#14532d]">
+          <PhoneCall className="w-4 h-4 text-[#15803d] shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="font-semibold">
+            {isAmharicUI ? (
+              <>
+                የይለፍ ቃልዎን ከረሱ ወይም ተጨማሪ መረጃ ከፈለጉ በስልክ ቁጥር{' '}
+                <a
+                  href={`tel:${SUPPORT_PHONE}`}
+                  className="font-bold underline tabular-nums text-[#14532d]"
+                >
+                  {SUPPORT_PHONE}
+                </a>{' '}
+                ይደውሉ።
+              </>
+            ) : (
+              <>
+                If you forgot your password or need further information, please contact{' '}
+                <a
+                  href={`tel:${SUPPORT_PHONE}`}
+                  className="font-bold underline tabular-nums text-[#14532d]"
+                >
+                  {SUPPORT_PHONE}
+                </a>
+                .
+              </>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );

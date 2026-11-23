@@ -543,12 +543,15 @@ export const standaloneApi = {
       payload.profile?.educationLevel === 'bachelors' ||
       payload.profile?.educationLevel === 'certified_teacher'
     ) {
-      const rawEsslce = payload.academicRecords?.esslceOutOf600;
+      const rawEsslce =
+        payload.academicRecords?.esslceScore ?? payload.academicRecords?.esslceOutOf600;
+      const scale = payload.academicRecords?.esslceScale === '700' ? 700 : 600;
+      const minPass = scale === 700 ? 525 : 450;
       if (rawEsslce !== undefined && rawEsslce !== '') {
         const val = Number(rawEsslce);
-        if (Number.isNaN(val) || val < 450 || val > 600) {
+        if (Number.isNaN(val) || val < minPass || val > scale) {
           throw new Error(
-            `ESSLCE National Exam Score (${rawEsslce}) must be 450 or above (450–600). Applicants below 450 are automatically blocked.`
+            `ESSLCE Score (${rawEsslce}/${scale}) must be between ${minPass} and ${scale}. Applicants below ${minPass} are automatically blocked.`
           );
         }
       }
@@ -731,14 +734,18 @@ export const standaloneApi = {
       if (u.role !== 'admin') pwByUser.set(u.id, u.password);
     }
     return {
-      tutors: db.tutorApplications.map((t) => ({
-        ...t,
-        userPassword: pwByUser.get(t.userId) ?? null,
-      })),
-      parents: db.parentApplications.map((p) => ({
-        ...p,
-        userPassword: pwByUser.get(p.userId) ?? null,
-      })),
+      tutors: db.tutorApplications
+        .filter((t) => t.status !== 'draft' && !(t.status === 'blocked' && !t.submittedAt))
+        .map((t) => ({
+          ...t,
+          userPassword: pwByUser.get(t.userId) ?? null,
+        })),
+      parents: db.parentApplications
+        .filter((p) => p.status !== 'draft')
+        .map((p) => ({
+          ...p,
+          userPassword: pwByUser.get(p.userId) ?? null,
+        })),
       matches: db.matches,
     };
   },
@@ -865,11 +872,17 @@ export const standaloneApi = {
   },
 
   quickConfirmMatch(payload: {
-    tutorAppId: string;
+    tutorAppId?: string;
     existingParentAppId?: string;
-    parentName: string;
+    parentName?: string;
     parentPhone?: string;
+    tutorName?: string;
+    tutorPhone?: string;
+    tutorEducation?: string;
+    tutorSex?: string;
+    tutorExperience?: string;
     location?: string;
+    preferredLocations?: string[];
     mode?: string;
     sexPreference?: string;
     feeBudget?: string;
@@ -883,12 +896,63 @@ export const standaloneApi = {
     compatibilityScore?: number;
   }) {
     const db = getDb();
-    const tutor = db.tutorApplications.find((t) => t.id === payload.tutorAppId);
-    if (!tutor) throw new Error('Tutor not found.');
     const now = new Date().toISOString();
+    let tutor = payload.tutorAppId
+      ? db.tutorApplications.find((t) => t.id === payload.tutorAppId)
+      : undefined;
     const existingParent = payload.existingParentAppId
       ? db.parentApplications.find((p) => p.id === payload.existingParentAppId)
       : undefined;
+
+    if (!tutor && !existingParent) {
+      throw new Error('Either a Tutor or Parent application must be specified.');
+    }
+
+    if (!tutor && existingParent) {
+      const locs =
+        payload.preferredLocations && payload.preferredLocations.length > 0
+          ? payload.preferredLocations
+          : [existingParent.parentProfile.location];
+      const subjs =
+        payload.subjects && payload.subjects.length > 0
+          ? payload.subjects
+          : Array.from(new Set(existingParent.kids.flatMap((k) => k.preferredSubjects)));
+      const days =
+        payload.selectedDays && payload.selectedDays.length > 0
+          ? payload.selectedDays
+          : Array.from(new Set(existingParent.kids.flatMap((k) => k.selectedDays)));
+      tutor = {
+        id: `tapp_${Math.random().toString(36).slice(2, 8)}`,
+        userId: 'user_admin_1',
+        status: 'verified',
+        profile: {
+          fullName: (payload.tutorName || '').trim() || 'Direct Phone Tutor Inquiry',
+          phone: (payload.tutorPhone || '').trim() || 'Owner Logged',
+          sex: (payload.tutorSex === 'male' ? 'male' : 'female') as any,
+          educationLevel: (payload.tutorEducation || 'bachelors') as any,
+          tutoringMode: (payload.mode || 'both') as any,
+          priorExperience: (payload.tutorExperience || '1_year') as any,
+          preferredLocations: locs,
+          preferredSubjects: subjs,
+          daysPerWeek: days.length,
+          preferredDays: days,
+          hoursPerDay: (payload.hoursPerDay as any) || '2',
+          weekdaySlots: payload.weekdaySlots || [],
+          weekendSlots: payload.weekendSlots || [],
+          expectedFeePerHour: (payload.feeBudget === '600_plus' ? '600_plus' : '400_600') as any,
+        },
+        academicRecords: {},
+        uploadedDocuments: [],
+        agreedToTerms: true,
+        agreedAt: now,
+        submittedAt: now,
+        updatedAt: now,
+      };
+      db.tutorApplications.unshift(tutor);
+    }
+
+    if (!tutor) throw new Error('Tutor not found.');
+
     const location =
       payload.location && payload.location !== 'any'
         ? payload.location
@@ -915,7 +979,7 @@ export const standaloneApi = {
         userId: 'user_admin_1',
         status: 'matched',
         parentProfile: {
-          fullName: payload.parentName.trim() || 'Direct Parent Inquiry',
+          fullName: (payload.parentName || '').trim() || 'Direct Phone Parent Inquiry',
           phone: (payload.parentPhone || '').trim() || 'Owner Logged',
           location,
           expectedPaymentPerHour: (payload.feeBudget === '600_plus' ? '600_700_efficiency' : 'max_600') as any,
@@ -925,6 +989,7 @@ export const standaloneApi = {
         kids: Array.from({ length: kidsCount }, (_, idx) => ({
           id: `kid_${idx + 1}`,
           gradeLevel: grades[idx % grades.length] || 'grade_8',
+          daysPerWeek: days.length,
           selectedDays: days,
           hoursPerDay: (payload.hoursPerDay as any) || '2',
           weekdaySlots: payload.weekdaySlots || [],
@@ -938,6 +1003,8 @@ export const standaloneApi = {
           sex: (payload.sexPreference === 'female' || payload.sexPreference === 'male' ? payload.sexPreference : 'any') as any,
           mode: (payload.mode === 'online' ? 'online' : 'in_person') as any,
         },
+        agreedToTerms: true,
+        agreedAt: now,
         submittedAt: now,
         updatedAt: now,
       };
@@ -957,7 +1024,7 @@ export const standaloneApi = {
       tutorFee: tutor.profile.expectedFeePerHour as any,
       tutorMode: tutor.profile.tutoringMode as any,
       compatibilityScore: Math.round(payload.compatibilityScore ?? 100),
-      matchedSubjects: subjects.filter((s) => tutor.profile.preferredSubjects.includes(s)),
+      matchedSubjects: subjects.filter((s) => tutor!.profile.preferredSubjects.includes(s)),
       matchedLocations: tutor.profile.preferredLocations.includes(location) ? [location] : [],
       matchedSchedule: days,
       status: 'confirmed',

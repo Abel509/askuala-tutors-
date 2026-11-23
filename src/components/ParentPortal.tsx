@@ -59,6 +59,7 @@ function createEmptyKid(index: number): KidProfileItem {
   return {
     id: `kid_${index + 1}`,
     gradeLevel: '',
+    daysPerWeek: undefined,
     selectedDays: [],
     hoursPerDay: '',
     weekdaySlots: [],
@@ -95,9 +96,14 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
   );
   const [kids, setKids] = useState<KidProfileItem[]>(() =>
     existingApplication?.kids && existingApplication.kids.length > 0
-      ? existingApplication.kids
+      ? existingApplication.kids.map((k) => ({
+          ...k,
+          daysPerWeek:
+            k.daysPerWeek ?? (k.selectedDays?.length ? k.selectedDays.length : undefined),
+        }))
       : [createEmptyKid(0)]
   );
+  const [kidCapWarnings, setKidCapWarnings] = useState<Record<string, string>>({});
 
   const [tutorPreference, setTutorPreference] = useState<ParentTutorPreference>(() => ({
     sex: existingApplication?.tutorPreference.sex || '',
@@ -218,6 +224,15 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
     setKids((prev) => prev.map((k, i) => (i === idx ? { ...k, ...patch } : k)));
   };
 
+  const clearCapWarning = (key: string) => {
+    setKidCapWarnings((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   const toggleKidArray = (
     idx: number,
     field: 'selectedDays' | 'weekdaySlots' | 'weekendSlots' | 'preferredSubjects',
@@ -228,6 +243,49 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
       clearFieldError(`kid_${idx}_weekdaySlots`);
       clearFieldError(`kid_${idx}_weekendSlots`);
     }
+
+    const kid = kids[idx];
+    if (!kid) return;
+
+    if (field === 'selectedDays') {
+      const already = kid.selectedDays.includes(id);
+      const limit = kid.daysPerWeek || 0;
+      if (!already && limit > 0 && kid.selectedDays.length >= limit) {
+        setKidCapWarnings((prev) => ({
+          ...prev,
+          [`${idx}_days`]: `ተገድቧል፡ በሳምንት ${limit} ቀን ብቻ መርጠዋል። ተጨማሪ ቀናትን ለመምረጥ መጀመሪያ ከላይ ያለውን «በሳምንት ስንት ቀናት?» ምርጫ ያስተካክሉ።`,
+        }));
+        return;
+      }
+      clearCapWarning(`${idx}_days`);
+    }
+
+    if (field === 'weekdaySlots') {
+      const already = kid.weekdaySlots.includes(id);
+      const limit = Number(kid.hoursPerDay || 0);
+      if (!already && limit > 0 && kid.weekdaySlots.length >= limit) {
+        setKidCapWarnings((prev) => ({
+          ...prev,
+          [`${idx}_wd`]: `ተገድቧል፡ በቀን ${limit} ሰዓት ብቻ መርጠዋል። ከ${limit} የጊዜ ሰሌዳ በላይ መምረጥ አይችሉም — መጀመሪያ «በቀን ስንት ሰዓት?» የሚለውን ያስተካክሉ።`,
+        }));
+        return;
+      }
+      clearCapWarning(`${idx}_wd`);
+    }
+
+    if (field === 'weekendSlots') {
+      const already = kid.weekendSlots.includes(id);
+      const limit = Number(kid.hoursPerDay || 0);
+      if (!already && limit > 0 && kid.weekendSlots.length >= limit) {
+        setKidCapWarnings((prev) => ({
+          ...prev,
+          [`${idx}_we`]: `ተገድቧል፡ በቀን ${limit} ሰዓት ብቻ መርጠዋል። ከ${limit} የጊዜ ሰሌዳ በላይ መምረጥ አይችሉም — መጀመሪያ «በቀን ስንት ሰዓት?» የሚለውን ያስተካክሉ።`,
+        }));
+        return;
+      }
+      clearCapWarning(`${idx}_we`);
+    }
+
     setKids((prev) =>
       prev.map((k, i) => {
         if (i !== idx) return k;
@@ -292,21 +350,40 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
         fields.add(`kid_${i}_privateCurriculum`);
         messages.push(`ልጅ ${num}፡ የግል ትምህርት ቤቱን ሥርዓተ ትምህርት ይምረጡ።`);
       }
-      if (k.selectedDays.length === 0) {
+
+      if (!k.daysPerWeek || k.daysPerWeek < 1) {
+        fields.add(`kid_${i}_daysPerWeek`);
+        messages.push(`ልጅ ${num}፡ በሳምንት ስንት ቀናት (1–7) እንደሚያጠና ይምረጡ።`);
+      } else if (k.selectedDays.length === 0) {
         fields.add(`kid_${i}_selectedDays`);
-        messages.push(`ልጅ ${num}፡ ቢያንስ አንድ የጥናት ቀን ይምረጡ።`);
-      } else {
+        messages.push(`ልጅ ${num}፡ የመረጡትን ${k.daysPerWeek} የጥናት ቀን(ናት) ይምረጡ።`);
+      } else if (k.selectedDays.length !== k.daysPerWeek) {
+        fields.add(`kid_${i}_selectedDays`);
+        messages.push(
+          `ልጅ ${num}፡ በሳምንት ${k.daysPerWeek} ቀናት ስለመረጡ ትክክለኛውን ${k.daysPerWeek} ቀናት ይምረጡ (አሁን ${k.selectedDays.length} ተመርጧል) ወይም የቀናት ብዛቱን ያስተካክሉ።`
+        );
+      }
+
+      const hourLimit = Number(k.hoursPerDay || 0);
+      if (k.selectedDays.length > 0 && hourLimit > 0) {
         const hasWd = k.selectedDays.some((d) => d !== 'saturday' && d !== 'sunday');
         const hasWe = k.selectedDays.some((d) => d === 'saturday' || d === 'sunday');
         if (hasWd && k.weekdaySlots.length === 0) {
           fields.add(`kid_${i}_weekdaySlots`);
           messages.push(`ልጅ ${num}፡ ለመረጧቸው የሳምንቱ ቀናት (ከሰኞ–ዓርብ) የጥናት ሰዓት ይምረጡ።`);
+        } else if (k.weekdaySlots.length > hourLimit) {
+          fields.add(`kid_${i}_weekdaySlots`);
+          messages.push(`ልጅ ${num}፡ በሳምንቱ ቀናት ከ${hourLimit} የጥናት ሰዓት በላይ መምረጥ አይቻልም።`);
         }
         if (hasWe && k.weekendSlots.length === 0) {
           fields.add(`kid_${i}_weekendSlots`);
           messages.push(`ልጅ ${num}፡ ለመረጧቸው የቅዳሜ/እሑድ ቀናት የጥናት ሰዓት ይምረጡ።`);
+        } else if (k.weekendSlots.length > hourLimit) {
+          fields.add(`kid_${i}_weekendSlots`);
+          messages.push(`ልጅ ${num}፡ በቅዳሜ/እሑድ ከ${hourLimit} የጥናት ሰዓት በላይ መምረጥ አይቻልም።`);
         }
       }
+
       if (k.preferredSubjects.length === 0) {
         fields.add(`kid_${i}_preferredSubjects`);
         messages.push(`ልጅ ${num}፡ ቢያንስ አንድ የሚፈለግ የትምህርት ዓይነት ይምረጡ።`);
@@ -1147,6 +1224,10 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                                 value={kid.hoursPerDay}
                                 onChange={(e) => {
                                   clearFieldError(`kid_${idx}_hoursPerDay`);
+                                  clearFieldError(`kid_${idx}_weekdaySlots`);
+                                  clearFieldError(`kid_${idx}_weekendSlots`);
+                                  clearCapWarning(`${idx}_wd`);
+                                  clearCapWarning(`${idx}_we`);
                                   updateKid(idx, {
                                     hoursPerDay: e.target.value as '1' | '2' | '3' | '',
                                   });
@@ -1253,43 +1334,117 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                             </div>
                           )}
 
-                          <fieldset
-                            data-field-error={
-                              isErr(`kid_${idx}_selectedDays`) ? 'true' : undefined
-                            }
-                            className={`rounded-xl p-2 ${
-                              isErr(`kid_${idx}_selectedDays`) ? 'field-error' : ''
-                            }`}
-                          >
-                            <legend className="text-sm font-bold text-[#14532d] mb-2">
-                              የጥናት ቀናትን ይምረጡ *
-                            </legend>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                              {DAYS_OF_WEEK.map((day) => {
-                                const checked = kid.selectedDays.includes(day.id);
-                                return (
-                                  <label
-                                    key={day.id}
-                                    className={`flex items-center justify-center px-3 py-2 rounded-lg border text-sm cursor-pointer font-bold ${
-                                      checked
-                                        ? 'bg-[#14532d] text-white border-[#14532d]'
-                                        : 'bg-white text-[#0f172a] border-[#cbd5e1]'
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() => toggleKidArray(idx, 'selectedDays', day.id)}
-                                      className="sr-only"
-                                    />
-                                    <span>{day.am}</span>
-                                  </label>
-                                );
-                              })}
+                          {/* በሳምንት ስንት ቀናት -> የጥናት ቀናት */}
+                          <div className="p-4 rounded-xl bg-white border border-[#bbf7d0] space-y-3">
+                            <div
+                              data-field-error={
+                                isErr(`kid_${idx}_daysPerWeek`) ? 'true' : undefined
+                              }
+                            >
+                              <label
+                                htmlFor={`kid-${idx}-days-per-week`}
+                                className="block text-sm font-bold text-[#14532d] mb-1.5"
+                              >
+                                በሳምንት ስንት ቀናት ይማራል? *
+                              </label>
+                              <select
+                                id={`kid-${idx}-days-per-week`}
+                                aria-invalid={isErr(`kid_${idx}_daysPerWeek`)}
+                                value={kid.daysPerWeek || ''}
+                                onChange={(e) => {
+                                  clearFieldError(`kid_${idx}_daysPerWeek`);
+                                  clearFieldError(`kid_${idx}_selectedDays`);
+                                  clearCapWarning(`${idx}_days`);
+                                  const val = e.target.value ? Number(e.target.value) : undefined;
+                                  updateKid(idx, { daysPerWeek: val });
+                                }}
+                                className={`w-full sm:w-80 min-h-[44px] px-3 py-2 rounded-lg border-[1.5px] bg-white font-semibold tabular-nums ${
+                                  isErr(`kid_${idx}_daysPerWeek`)
+                                    ? 'field-error'
+                                    : 'border-[#cbd5e1]'
+                                }`}
+                              >
+                                <option value="">በሳምንት ስንት ቀናት ይምረጡ...</option>
+                                {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                                  <option key={d} value={d}>
+                                    በሳምንት {d} ቀን{d > 1 ? 'ናት' : ''}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                          </fieldset>
 
-                          {kid.selectedDays.length > 0 && (
+                            {!kid.daysPerWeek ? (
+                              <p className="text-xs font-semibold text-[#15803d] bg-[#f0fdf4] px-3.5 py-2.5 rounded-lg border border-[#bbf7d0]">
+                                መጀመሪያ ከላይ «በሳምንት ስንት ቀናት ይማራል?» የሚለውን ይምረጡ — የቀናቱ ዝርዝር እዚህ
+                                ይከፈታል።
+                              </p>
+                            ) : (
+                              <fieldset
+                                data-field-error={
+                                  isErr(`kid_${idx}_selectedDays`) ? 'true' : undefined
+                                }
+                                className={`rounded-xl pt-2 border-t border-[#bbf7d0] ${
+                                  isErr(`kid_${idx}_selectedDays`) ? 'field-error p-2' : ''
+                                }`}
+                              >
+                                <legend className="text-sm font-bold text-[#14532d] mb-2">
+                                  የጥናት ቀናትን ይምረጡ * ({kid.selectedDays.length}/{kid.daysPerWeek})
+                                </legend>
+                                {kid.selectedDays.length > kid.daysPerWeek && (
+                                  <div
+                                    role="alert"
+                                    className="mb-2.5 p-2.5 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
+                                  >
+                                    አሁን {kid.selectedDays.length} ቀናት ተመርጠዋል፤ ነገር ግን በሳምንት{' '}
+                                    {kid.daysPerWeek} ቀናት ብቻ ነው የመረጡት። ተጨማሪዎቹን ይቀንሱ ወይም የቀናት ብዛቱን
+                                    ያስተካክሉ።
+                                  </div>
+                                )}
+                                {kidCapWarnings[`${idx}_days`] && (
+                                  <div
+                                    role="alert"
+                                    className="mb-2.5 p-2.5 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-2"
+                                  >
+                                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                                    <span>{kidCapWarnings[`${idx}_days`]}</span>
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                                  {DAYS_OF_WEEK.map((day) => {
+                                    const checked = kid.selectedDays.includes(day.id);
+                                    return (
+                                      <label
+                                        key={day.id}
+                                        className={`flex items-center justify-center px-3 py-2 rounded-lg border text-sm cursor-pointer font-bold ${
+                                          checked
+                                            ? 'bg-[#14532d] text-white border-[#14532d]'
+                                            : 'bg-white text-[#0f172a] border-[#cbd5e1] hover:border-[#22c55e]'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() =>
+                                            toggleKidArray(idx, 'selectedDays', day.id)
+                                          }
+                                          className="sr-only"
+                                        />
+                                        <span>{day.am}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </fieldset>
+                            )}
+                          </div>
+
+                          {kid.selectedDays.length > 0 && !kid.hoursPerDay && (
+                            <div className="p-3.5 rounded-xl bg-[#f0fdf4] border border-[#22c55e] text-xs font-bold text-[#14532d]">
+                              የጥናት ሰዓቶችን ለመምረጥ መጀመሪያ ከላይ «በቀን ስንት ሰዓት? (1፣ 2 ወይም 3)» የሚለውን ይምረጡ።
+                            </div>
+                          )}
+
+                          {kid.selectedDays.length > 0 && Boolean(kid.hoursPerDay) && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl">
                               {hasWeekday && (
                                 <fieldset
@@ -1303,8 +1458,25 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                                   }`}
                                 >
                                   <legend className="text-sm font-bold text-[#14532d] mb-2">
-                                    የሳምንቱ ቀናት ሰዓት (በኢትዮጵያ አቆጣጠር) * (ግዴታ)
+                                    የሳምንቱ ቀናት ሰዓት (ከፍተኛው {kid.hoursPerDay} ሰዓት) *
                                   </legend>
+                                  {kid.weekdaySlots.length > Number(kid.hoursPerDay) && (
+                                    <div
+                                      role="alert"
+                                      className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
+                                    >
+                                      በቀን ከ{kid.hoursPerDay} ሰዓት በላይ ተመርጧል፤ እባክዎ ትርፍ ሰዓቶችን ያንሱ።
+                                    </div>
+                                  )}
+                                  {kidCapWarnings[`${idx}_wd`] && (
+                                    <div
+                                      role="alert"
+                                      className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-1.5"
+                                    >
+                                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                                      <span>{kidCapWarnings[`${idx}_wd`]}</span>
+                                    </div>
+                                  )}
                                   <div className="space-y-2">
                                     {WEEKDAY_SLOTS.map((slot) => {
                                       const checked = kid.weekdaySlots.includes(slot.id);
@@ -1345,8 +1517,25 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({
                                   }`}
                                 >
                                   <legend className="text-sm font-bold text-[#14532d] mb-2">
-                                    የቅዳሜ እና እሑድ ሰዓት (በኢትዮጵያ አቆጣጠር) * (ግዴታ)
+                                    የቅዳሜ እና እሑድ ሰዓት (ከፍተኛው {kid.hoursPerDay} ሰዓት) *
                                   </legend>
+                                  {kid.weekendSlots.length > Number(kid.hoursPerDay) && (
+                                    <div
+                                      role="alert"
+                                      className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b]"
+                                    >
+                                      በቀን ከ{kid.hoursPerDay} ሰዓት በላይ ተመርጧል፤ እባክዎ ትርፍ ሰዓቶችን ያንሱ።
+                                    </div>
+                                  )}
+                                  {kidCapWarnings[`${idx}_we`] && (
+                                    <div
+                                      role="alert"
+                                      className="mb-2 p-2 rounded-lg bg-[#fef2f2] border border-[#dc2626] text-xs font-bold text-[#991b1b] flex items-center gap-1.5"
+                                    >
+                                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                                      <span>{kidCapWarnings[`${idx}_we`]}</span>
+                                    </div>
+                                  )}
                                   <div className="grid grid-cols-2 gap-2">
                                     {WEEKEND_SLOTS.map((slot) => {
                                       const checked = kid.weekendSlots.includes(slot.id);
