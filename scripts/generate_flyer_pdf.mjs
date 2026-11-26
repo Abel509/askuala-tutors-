@@ -101,7 +101,6 @@ function drawMixedWrapped(page, text, opts) {
   return curY;
 }
 
-// SVG path for rounded rectangle starting at top-left (0,0) -> (w,h)
 function roundedRectPath(w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
   return [
@@ -117,7 +116,6 @@ function roundedRectPath(w, h, r) {
   ].join(' ');
 }
 
-// Asymmetric rounded card (e.g., top-right corner ribbon with curved bottom-left)
 function customCornersPath(w, h, rTL, rTR, rBR, rBL) {
   return [
     `M ${rTL},0`,
@@ -135,7 +133,7 @@ function customCornersPath(w, h, rTL, rTR, rBR, rBL) {
 function drawRoundedBox(page, opts) {
   const {
     x,
-    y, // bottom-left Y in PDF coordinates
+    y,
     width,
     height,
     radius = 12,
@@ -156,23 +154,36 @@ function drawRoundedBox(page, opts) {
   });
 }
 
-// Custom modern vector crest logo inspired by the open book + rising scholar & gold star
-function drawAskualaModernLogo(page, x, topY, scale = 1) {
-  const navy = rgb(0.043, 0.122, 0.267); // #0B1F44
-  const gold = rgb(0.961, 0.718, 0.0); // #F5B700
-  const emerald = rgb(0.055, 0.486, 0.314); // #0E7C50
+// Crisp vector logo matching the exact open-book + rising scholar + gold star emblem on her green t-shirt
+function drawAskualaHeaderLogo(page, x, y, boxSize) {
+  const brandGreen = rgb(0.0, 0.541, 0.235); // #008A3C vibrant polo green
+  const navy = rgb(0.043, 0.165, 0.369); // #0B2A5E
+  const gold = rgb(0.976, 0.769, 0.118); // #F9C41E
+  const white = rgb(1, 1, 1);
 
-  // Soft circular glow backdrop
-  page.drawCircle({
-    x: x + 28 * scale,
-    y: topY - 28 * scale,
-    size: 27 * scale,
-    color: rgb(0.996, 0.965, 0.855),
+  drawRoundedBox(page, {
+    x,
+    y,
+    width: boxSize,
+    height: boxSize,
+    radius: 14,
+    color: white,
     borderColor: gold,
-    borderWidth: 1.4 * scale,
+    borderWidth: 1.8,
   });
 
-  // Left & Right Navy Book Pages (open curved wings)
+  const scale = boxSize / 56;
+  const topY = y + boxSize;
+
+  // Soft golden aura ring behind emblem
+  page.drawCircle({
+    x: x + boxSize / 2,
+    y: y + boxSize / 2,
+    size: 22 * scale,
+    color: rgb(0.96, 0.99, 0.97),
+  });
+
+  // Left & Right Navy/Green Book Pages
   page.drawSvgPath(
     'M 8,36 C 14,32 22,33 27.5,39 L 27.5,45 C 21,40 13,40 7,43 Z',
     { x, y: topY, scale, color: navy }
@@ -182,7 +193,7 @@ function drawAskualaModernLogo(page, x, topY, scale = 1) {
     { x, y: topY, scale, color: navy }
   );
 
-  // Inner Golden Book Pages Accent
+  // Inner Golden Pages
   page.drawSvgPath(
     'M 10,32 C 16,29 22,30 27.5,35.5 L 27.5,38 C 22,33.5 15,32.5 9.5,35 Z',
     { x, y: topY, scale, color: gold }
@@ -192,61 +203,22 @@ function drawAskualaModernLogo(page, x, topY, scale = 1) {
     { x, y: topY, scale, color: gold }
   );
 
-  // Joyful scholar silhouette rising from center book with uplifted arms
+  // Joyful scholar silhouette rising from center book
   page.drawSvgPath(
-    'M 19,20 C 22,25 25,28 28,33 C 31,27 35,21 40,14 C 37,20 33,27 30.5,35 L 25.5,35 C 23,28 20.5,24 19,20 Z',
-    { x, y: topY, scale, color: navy }
+    'M 18.5,20 C 22,25 25,28 28,33 C 31,27 35,21 40,14 C 37,20 33,27 30.5,35 L 25.5,35 C 23,28 20.5,24 18.5,20 Z',
+    { x, y: topY, scale, color: brandGreen }
   );
-  // Scholar head
   page.drawCircle({
     x: x + 28 * scale,
     y: topY - 21 * scale,
     size: 4.1 * scale,
-    color: emerald,
+    color: navy,
   });
 
-  // Bright 5-point Golden Star above uplifted reach
+  // Bright Golden Star
   page.drawSvgPath(
     'M 40.5,5.5 L 42.1,9.7 L 46.6,9.9 L 43.1,12.7 L 44.3,17 L 40.5,14.5 L 36.7,17 L 37.9,12.7 L 34.4,9.9 L 38.9,9.7 Z',
     { x, y: topY, scale, color: gold }
-  );
-}
-
-// Handshake/Trust emblem inside bottom-left circular seal
-function drawTrustSealBadge(page, cx, cy) {
-  const navy = rgb(0.043, 0.122, 0.267);
-  const gold = rgb(0.961, 0.718, 0.0);
-  const emerald = rgb(0.055, 0.486, 0.314);
-  const white = rgb(1, 1, 1);
-
-  page.drawCircle({
-    x: cx,
-    y: cy,
-    size: 23,
-    color: navy,
-    borderColor: gold,
-    borderWidth: 2.5,
-  });
-  page.drawCircle({
-    x: cx,
-    y: cy,
-    size: 18,
-    borderColor: rgb(0.996, 0.94, 0.72),
-    borderWidth: 0.7,
-    borderOpacity: 0.65,
-  });
-  // Stylized open book + star centered inside circular seal
-  page.drawSvgPath(
-    'M 6,21 C 10.5,17.5 15,18.5 18,22.5 L 18,26.5 C 14,23 10,23 5.5,25.5 Z',
-    { x: cx - 18, y: cy + 16, color: white }
-  );
-  page.drawSvgPath(
-    'M 30,21 C 25.5,17.5 21,18.5 18,22.5 L 18,26.5 C 22,23 26,23 30.5,25.5 Z',
-    { x: cx - 18, y: cy + 16, color: gold }
-  );
-  page.drawSvgPath(
-    'M 18,5.5 L 19.8,10.2 L 24.8,10.5 L 20.9,13.6 L 22.2,18.4 L 18,15.6 L 13.8,18.4 L 15.1,13.6 L 11.2,10.5 L 16.2,10.2 Z',
-    { x: cx - 18, y: cy + 16, color: emerald }
   );
 }
 
@@ -272,7 +244,7 @@ function addUriLinkAnnotation(pdfDoc, page, rect, uri) {
   }
 }
 
-function drawQrCodeVector(page, url, x, y, boxSize, darkColor, lightColor, goldBorder) {
+function drawQrCodeVector(page, url, x, y, boxSize, darkColor, lightColor, borderGold) {
   const qr = QRCode.create(url, { errorCorrectionLevel: 'M' });
   const modules = qr.modules;
   const count = modules.size;
@@ -287,8 +259,8 @@ function drawQrCodeVector(page, url, x, y, boxSize, darkColor, lightColor, goldB
     height: boxSize,
     radius: 10,
     color: lightColor,
-    borderColor: goldBorder,
-    borderWidth: 2,
+    borderColor: borderGold,
+    borderWidth: 1.6,
   });
 
   for (let r = 0; r < count; r++) {
@@ -328,350 +300,245 @@ async function generateFlyer() {
   const fonts = { ethReg, ethBold, latinReg, latinBold };
 
   const heroBytes = fs.readFileSync(
-    path.join(rootDir, 'src/assets/images/askuala_flyer_green_shirt_clean_1795699091652.jpg')
+    path.join(rootDir, 'src/assets/images/askuala_flyer_wide_tutor_boy_1795701383591.jpg')
   );
   const heroImg = await pdfDoc.embedJpg(heroBytes);
 
   const page = pdfDoc.addPage([A4_W, A4_H]);
 
-  // Vibrant Modern Graphic Palette (inspired by the Navy + Bright Gold + Cream + Emerald + White reference)
+  // Vibrant T-Shirt Kelly Green Palette + Warm Gold + Crisp White
+  const pageBg = rgb(0.976, 0.992, 0.98); // #F9FDFA fresh crisp mint-white
+  const tGreen = rgb(0.0, 0.541, 0.235); // #008A3C exact vibrant t-shirt green
+  const tGreenDeep = rgb(0.0, 0.431, 0.184); // #006E2F slightly deeper green for contrast pills
+  const tGreenSoft = rgb(0.914, 0.98, 0.937); // #E9FAF0 fresh pale green tint
+  const gold = rgb(0.961, 0.761, 0.149); // #F5C226 vibrant warm gold
+  const goldSoft = rgb(0.996, 0.957, 0.804); // #FEF4CD warm butter gold
+  const inkDark = rgb(0.055, 0.165, 0.102); // #0E2A1A clean readable dark forest ink
+  const slateText = rgb(0.22, 0.29, 0.25);
   const white = rgb(1, 1, 1);
-  const softSkyBg = rgb(0.969, 0.98, 0.996); // #F7FAFE crisp bright white-blue tint
-  const navy = rgb(0.043, 0.122, 0.267); // #0B1F44
-  const navyDeep = rgb(0.027, 0.086, 0.2); // #071633
-  const gold = rgb(0.961, 0.718, 0.0); // #F5B700 vibrant golden yellow
-  const goldCream = rgb(0.996, 0.945, 0.745); // #FEF1BE warm soft butter gold
-  const emerald = rgb(0.055, 0.486, 0.314); // #0E7C50 vibrant emerald green
-  const emeraldLight = rgb(0.922, 0.98, 0.949); // #EBFAF2
-  const slateText = rgb(0.22, 0.275, 0.35); // #384659
-  const cardBorder = rgb(0.86, 0.9, 0.95);
-  const shadowColor = rgb(0.82, 0.87, 0.93);
+  const cardBorder = rgb(0.81, 0.92, 0.85);
+  const shadowTint = rgb(0.84, 0.91, 0.86);
 
-  // 1. Clean Bright Canvas + Subtle Geometric Accents
-  page.drawRectangle({ x: 0, y: 0, width: A4_W, height: A4_H, color: softSkyBg });
-
-  // Soft decorative curved light-gold accent wave top-left
-  page.drawCircle({
-    x: 40,
-    y: A4_H - 10,
-    size: 135,
-    color: rgb(0.996, 0.976, 0.91),
-    opacity: 0.7,
+  // 1. Fresh Crisp Background & Sleek Outer Frame
+  page.drawRectangle({ x: 0, y: 0, width: A4_W, height: A4_H, color: pageBg });
+  page.drawRectangle({
+    x: 14,
+    y: 14,
+    width: A4_W - 28,
+    height: A4_H - 28,
+    borderColor: tGreen,
+    borderWidth: 1.5,
   });
-  // Soft emerald tint accent circle behind middle-right
-  page.drawCircle({
-    x: A4_W - 25,
-    y: 445,
-    size: 110,
-    color: rgb(0.915, 0.975, 0.945),
-    opacity: 0.65,
-  });
-
-  // Top & Bottom Sleek Color Trim Bars
-  page.drawRectangle({ x: 0, y: A4_H - 7, width: A4_W, height: 7, color: navy });
-  page.drawRectangle({ x: 0, y: A4_H - 10, width: A4_W, height: 3, color: gold });
-  page.drawRectangle({ x: 0, y: 0, width: A4_W, height: 6, color: gold });
-
-  // Decorative subtle gold dots matrix near left margin
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 5; col++) {
-      page.drawCircle({
-        x: 24 + col * 8,
-        y: 492 - row * 8,
-        size: 1.3,
-        color: gold,
-        opacity: 0.55,
-      });
-    }
-  }
-
-  // =========================================================================
-  // 2. TOP HERO SPLIT LAYOUT (Resembling reference aesthetic — elevated!)
-  // =========================================================================
-
-  // --- LEFT HERO COLUMN (Logo, Navy+Gold Featured Box, Soft-Gold Tagline Pill, Lead Copy) ---
-  const leftColX = 24;
-  const leftColW = 244;
-
-  // Brand Lockup: Modern Open-Book+Star Vector Logo + Stacked Bold Amharic Title
-  drawAskualaModernLogo(page, leftColX, A4_H - 22, 1.04);
-  drawMixedText(page, 'ኣስኳላ', {
-    x: leftColX + 66,
-    y: A4_H - 47,
-    size: 21.5,
-    color: navy,
-    isBold: true,
-    fonts,
-  });
-  drawMixedText(page, 'አስጠኚዎች', {
-    x: leftColX + 66,
-    y: A4_H - 70,
-    size: 17.5,
-    color: emerald,
-    isBold: true,
-    fonts,
-  });
-
-  // Location Mini Pill
-  drawRoundedBox(page, {
-    x: leftColX + 66,
-    y: A4_H - 91,
-    width: 116,
-    height: 16,
-    radius: 8,
-    color: emeraldLight,
-    borderColor: emerald,
-    borderWidth: 0.7,
-  });
-  drawMixedCentered(page, 'አዲስ አበባ · ኢትዮጵያ', {
-    centerX: leftColX + 66 + 58,
-    y: A4_H - 86,
-    size: 7.5,
-    color: emerald,
-    isBold: true,
-    fonts,
-  });
-
-  // Signature Navy Rounded Box with Vibrant Golden Yellow Border (Main Headline!)
-  const heroBoxY = 650;
-  const heroBoxH = 74;
-  // Soft shadow behind navy box
-  drawRoundedBox(page, {
-    x: leftColX + 3,
-    y: heroBoxY - 4,
-    width: leftColW,
-    height: heroBoxH,
-    radius: 14,
-    color: shadowColor,
-  });
-  drawRoundedBox(page, {
-    x: leftColX,
-    y: heroBoxY,
-    width: leftColW,
-    height: heroBoxH,
-    radius: 14,
-    color: navy,
+  page.drawRectangle({
+    x: 18,
+    y: 18,
+    width: A4_W - 36,
+    height: A4_H - 36,
     borderColor: gold,
-    borderWidth: 2.6,
+    borderWidth: 0.85,
   });
-  drawMixedWrapped(page, 'ለልጆችዎ ብቁ፣ ታማኝ እና የተመረጡ አስጠኚዎችን ይፈልጋሉ?', {
-    x: leftColX + 14,
-    y: heroBoxY + heroBoxH - 28,
-    maxWidth: leftColW - 28,
-    size: 13.4,
-    lineHeight: 19,
+
+  // 2. Top Vibrant T-Shirt Green Header Banner
+  const headerH = 84;
+  const headerY = A4_H - 18 - headerH; // 739.89
+  page.drawRectangle({
+    x: 18,
+    y: headerY,
+    width: A4_W - 36,
+    height: headerH,
+    color: tGreen,
+  });
+  page.drawRectangle({
+    x: 18,
+    y: headerY,
+    width: A4_W - 36,
+    height: 3.5,
+    color: gold,
+  });
+
+  // Matching Crisp White Rounded Logo Badge in Header
+  const logoSize = 62;
+  const logoX = 32;
+  const logoY = headerY + (headerH - logoSize) / 2 + 1;
+  drawAskualaHeaderLogo(page, logoX, logoY, logoSize);
+
+  const brandX = logoX + logoSize + 14;
+  drawMixedText(page, 'ኣስኳላ አስጠኚዎች', {
+    x: brandX,
+    y: headerY + 46,
+    size: 24,
     color: white,
     isBold: true,
     fonts,
-    align: 'center',
+  });
+  drawMixedText(page, 'ጥራቱ የተረጋገጠ የቤት ለቤት እና የኦንላይን የጥናት አገልግሎት', {
+    x: brandX,
+    y: headerY + 23,
+    size: 9.7,
+    color: goldSoft,
+    isBold: true,
+    fonts,
   });
 
-  // Signature Warm Butter-Gold Rounded Pill Card (Tagline)
-  const goldPillY = 592;
-  const goldPillH = 44;
+  // Right-side Audience & Location Pills
+  const pillW = 142;
+  const pillH = 22;
+  const pillX = A4_W - 32 - pillW;
+  const pillY = headerY + 46;
   drawRoundedBox(page, {
-    x: leftColX,
-    y: goldPillY,
-    width: leftColW,
-    height: goldPillH,
-    radius: 11,
-    color: goldCream,
+    x: pillX,
+    y: pillY,
+    width: pillW,
+    height: pillH,
+    radius: 8,
+    color: tGreenDeep,
     borderColor: gold,
     borderWidth: 1.1,
   });
-  drawMixedWrapped(page, 'ጥራቱ የተረጋገጠ የቤት ለቤት እና የኦንላይን የጥናት አገልግሎት', {
-    x: leftColX + 12,
-    y: goldPillY + goldPillH - 16,
-    maxWidth: leftColW - 24,
-    size: 9.1,
-    lineHeight: 13,
-    color: navy,
+  drawMixedCentered(page, 'ለወላጆች እና ለቤተሰቦች', {
+    centerX: pillX + pillW / 2,
+    y: pillY + 7.5,
+    size: 9.2,
+    color: white,
     isBold: true,
     fonts,
-    align: 'center',
+  });
+  drawMixedCentered(page, 'አዲስ አበባ · ኢትዮጵያ', {
+    centerX: pillX + pillW / 2,
+    y: headerY + 23,
+    size: 8.8,
+    color: goldSoft,
+    isBold: false,
+    fonts,
   });
 
-  // Clean Family Subcopy Card below Gold Pill
+  // 3. Top Headline & Family Subcopy (Above Photo)
+  const headlineY = headerY - 24; // ~716
+  drawMixedCentered(page, 'ለልጆችዎ ብቁ፣ ታማኝ እና የተመረጡ አስጠኚዎችን ይፈልጋሉ?', {
+    centerX: A4_W / 2,
+    y: headlineY,
+    size: 16.5,
+    color: tGreenDeep,
+    isBold: true,
+    fonts,
+  });
+
   const subCopy =
     'በኣስኳላ አስጠኚዎች ከመዋዕለ ሕፃናት (ኬጂ) እስከ 12ኛ ክፍል ድረስ ለልጆችዎ የትምህርት ውጤት መሻሻልና በራስ መተማመን መዳበር የሚያግዙ፣ በትምህርት ብቃታቸውና በመልካም ሥነ ምግባራቸው የተመረጡ አስጠኚዎችን በቀላሉ ያገኛሉ።';
   drawMixedWrapped(page, subCopy, {
-    x: leftColX + 2,
-    y: 575,
-    maxWidth: leftColW - 4,
-    size: 8.5,
-    lineHeight: 12.6,
+    x: 34,
+    y: headlineY - 17,
+    maxWidth: A4_W - 68,
+    size: 9.2,
+    lineHeight: 13.2,
     color: slateText,
     isBold: false,
     fonts,
-    align: 'left',
+    align: 'center',
   });
 
-  // --- RIGHT HERO COLUMN (Vibrant Showcase Frame + Smiling Tutor in Green T-Shirt & Boy) ---
-  const rightColX = 282;
-  const rightColW = A4_W - rightColX - 24; // 289.28
-  const photoW = rightColW - 12; // 277.28
-  const photoH = (photoW * 3) / 4; // exact 4:3 = 207.96
-  const showcaseY = 496;
-  const showcaseH = 314;
+  // 4. FULL-WIDTH MIDDLE SHOWCASE PHOTO (Fills ALL middle horizontal space!)
+  // Aligned flush left-to-right with the 2 cards & CTA box: x = 28, w = 539.28, exact 16:9 -> h = 303.34
+  const photoX = 28;
+  const photoW = A4_W - 56; // 539.28
+  const photoH = (photoW * 9) / 16; // 303.345 exact 16:9 ratio
+  const photoY = 374; // top of photo ~ 677.34, cleanly below subcopy!
 
-  // Offset Navy & Gold Showcase Backdrop Card
+  // Subtle offset shadow & gold highlight frame
   drawRoundedBox(page, {
-    x: rightColX + 4,
-    y: showcaseY - 4,
-    width: rightColW,
-    height: showcaseH,
-    radius: 16,
-    color: shadowColor,
-  });
-  drawRoundedBox(page, {
-    x: rightColX,
-    y: showcaseY,
-    width: rightColW,
-    height: showcaseH,
-    radius: 16,
-    color: navy,
-    borderColor: gold,
-    borderWidth: 2.2,
-  });
-
-  // Top Header Strip inside Right Photo Showcase ("ለወላጆች እና ለቤተሰቦች")
-  const topRibbonH = 34;
-  drawMixedCentered(page, 'ለወላጆች እና ለቤተሰቦች የተዘጋጀ አገልግሎት', {
-    centerX: rightColX + rightColW / 2,
-    y: showcaseY + showcaseH - 22,
-    size: 9.8,
-    color: gold,
-    isBold: true,
-    fonts,
-  });
-
-  // Embedded 4:3 Photo (smiling 18+ tutor in green shirt + smiling boy)
-  const imgX = rightColX + 6;
-  const imgY = showcaseY + showcaseH - topRibbonH - photoH; // ~572
-  page.drawImage(heroImg, {
-    x: imgX,
-    y: imgY,
+    x: photoX + 4,
+    y: photoY - 4,
     width: photoW,
     height: photoH,
+    radius: 10,
+    color: shadowTint,
+  });
+  page.drawImage(heroImg, {
+    x: photoX,
+    y: photoY,
+    width: photoW,
+    height: photoH,
+  });
+
+  // Vibrant T-Shirt Green caption strip anchored cleanly along bottom of full-width photo
+  const capH = 24;
+  page.drawRectangle({
+    x: photoX,
+    y: photoY,
+    width: photoW,
+    height: capH,
+    color: tGreen,
+    opacity: 0.94,
   });
   page.drawRectangle({
-    x: imgX,
-    y: imgY,
+    x: photoX,
+    y: photoY + capH,
     width: photoW,
-    height: photoH,
-    borderColor: gold,
-    borderWidth: 1.2,
+    height: 1.6,
+    color: gold,
   });
-
-  // Crisp Brand Name on her green t-shirt chest right below the circular gold crest
-  drawMixedCentered(page, 'ኣስኳላ አስጠኚዎች', {
-    centerX: imgX + photoW * 0.522,
-    y: imgY + photoH * 0.382,
-    size: 3.8,
-    color: rgb(0.98, 0.86, 0.45),
-    isBold: true,
-    fonts,
-    rotateDeg: -2.5,
-  });
-
-  // Top-right overlapping curved Navy+Gold badge on the photo corner (resembling reference top-right pill!)
-  const cornerBadgeW = 134;
-  const cornerBadgeH = 30;
-  const cornerBadgeX = rightColX + rightColW - cornerBadgeW + 4;
-  const cornerBadgeTopY = imgY + photoH + 8;
-  page.drawSvgPath(customCornersPath(cornerBadgeW, cornerBadgeH, 0, 12, 0, 14), {
-    x: cornerBadgeX,
-    y: cornerBadgeTopY,
-    color: navyDeep,
-    borderColor: gold,
-    borderWidth: 2,
-  });
-  drawMixedCentered(page, 'ብቁ እና ታማኝ አስጠኚዎች', {
-    centerX: cornerBadgeX + cornerBadgeW / 2,
-    y: cornerBadgeTopY - 19,
-    size: 8.2,
+  drawMixedCentered(page, 'በፍቅር፣ በትዕግሥት እና በጥልቅ እውቀት የልጆችዎን የትምህርት ጉዞ የሚደግፉ ብቁ አስጠኚዎች', {
+    centerX: A4_W / 2,
+    y: photoY + 8,
+    size: 9.2,
     color: white,
     isBold: true,
     fonts,
   });
 
-  // Bottom Emerald & White Caption Band inside Showcase Card
-  const capAreaTopY = imgY - 4;
-  drawRoundedBox(page, {
-    x: rightColX + 8,
-    y: showcaseY + 8,
-    width: rightColW - 16,
-    height: capAreaTopY - (showcaseY + 8),
-    radius: 10,
-    color: emerald,
+  // Crisp gold outer frame around full-width showcase photo
+  page.drawRectangle({
+    x: photoX,
+    y: photoY,
+    width: photoW,
+    height: photoH,
     borderColor: gold,
-    borderWidth: 1.1,
+    borderWidth: 1.8,
   });
-  drawMixedWrapped(
-    page,
-    'በፍቅር፣ በትዕግሥት እና በጥልቅ እውቀት የልጆችዎን የትምህርት ጉዞ የሚደግፉ ብቁ አስጠኚዎች',
-    {
-      x: rightColX + 36,
-      y: capAreaTopY - 18,
-      maxWidth: rightColW - 48,
-      size: 8.6,
-      lineHeight: 12.2,
-      color: white,
-      isBold: true,
-      fonts,
-      align: 'center',
-    }
-  );
 
-  // Overlapping Circular Gold-Rimmed Trust Seal on Bottom-Left of Photo Card (like reference!)
-  drawTrustSealBadge(page, rightColX + 14, showcaseY + 34);
+  // 5. TWO-COLUMN CARDS (Immediately below photo, clean spacing, matching green & gold theme)
+  const gridTop = 362;
+  const gridBottom = 152;
+  const gridH = gridTop - gridBottom; // 210pt
+  const gap = 14;
+  const colW = (photoW - gap) / 2; // 262.64
+  const leftX = photoX;
+  const rightX = leftX + colW + gap;
 
-  // =========================================================================
-  // 3. TWO-COLUMN INFORMATION CARDS (Modern Vibrant Rounded Cards)
-  // =========================================================================
-  const gridTop = 480;
-  const gridBottom = 166;
-  const gridH = gridTop - gridBottom; // 314pt
-  const colGap = 14;
-  const colW = (A4_W - 48 - colGap) / 2; // 266.64
-  const leftCardX = 24;
-  const rightCardX = leftCardX + colW + colGap;
-
-  // --- LEFT CARD: Why Families Choose Us ---
+  // --- LEFT CARD ---
   drawRoundedBox(page, {
-    x: leftCardX + 3,
+    x: leftX + 3,
     y: gridBottom - 3,
     width: colW,
     height: gridH,
-    radius: 14,
-    color: shadowColor,
+    radius: 10,
+    color: shadowTint,
   });
   drawRoundedBox(page, {
-    x: leftCardX,
+    x: leftX,
     y: gridBottom,
     width: colW,
     height: gridH,
-    radius: 14,
+    radius: 10,
     color: white,
     borderColor: cardBorder,
     borderWidth: 1.1,
   });
-  // Navy Rounded Header Strip on Left Card
-  page.drawSvgPath(customCornersPath(colW, 34, 14, 14, 0, 0), {
-    x: leftCardX,
+  page.drawSvgPath(customCornersPath(colW, 29, 10, 10, 0, 0), {
+    x: leftX,
     y: gridTop,
-    color: navy,
+    color: tGreen,
   });
   page.drawRectangle({
-    x: leftCardX,
-    y: gridTop - 36,
+    x: leftX,
+    y: gridTop - 31,
     width: colW,
-    height: 2.5,
+    height: 2,
     color: gold,
   });
   drawMixedText(page, 'ለምን ኣስኳላ አስጠኚዎችን ይመርጣሉ?', {
-    x: leftCardX + 14,
-    y: gridTop - 22,
+    x: leftX + 13,
+    y: gridTop - 19,
     size: 10.6,
     color: white,
     isBold: true,
@@ -701,111 +568,107 @@ async function generateFlyer() {
     },
   ];
 
-  let curLeftY = gridTop - 58;
+  let curLeftY = gridTop - 46;
   for (const item of whyItems) {
-    // Vibrant Gold Rounded Number Badge
     drawRoundedBox(page, {
-      x: leftCardX + 12,
-      y: curLeftY - 12,
-      width: 21,
-      height: 21,
-      radius: 6,
-      color: goldCream,
-      borderColor: gold,
-      borderWidth: 1,
+      x: leftX + 12,
+      y: curLeftY - 9,
+      width: 17,
+      height: 17,
+      radius: 5,
+      color: tGreenSoft,
+      borderColor: tGreen,
+      borderWidth: 0.9,
     });
     drawMixedCentered(page, item.num, {
-      centerX: leftCardX + 22.5,
-      y: curLeftY - 5.5,
-      size: 9.4,
-      color: navy,
+      centerX: leftX + 20.5,
+      y: curLeftY - 3.5,
+      size: 8.5,
+      color: tGreenDeep,
       isBold: true,
       fonts,
     });
-
     drawMixedText(page, item.title, {
-      x: leftCardX + 41,
-      y: curLeftY - 2,
-      size: 10,
-      color: navy,
+      x: leftX + 35,
+      y: curLeftY - 1,
+      size: 9.2,
+      color: inkDark,
       isBold: true,
       fonts,
     });
-    const afterDescY = drawMixedWrapped(page, item.desc, {
-      x: leftCardX + 41,
-      y: curLeftY - 17,
-      maxWidth: colW - 54,
-      size: 8.6,
-      lineHeight: 12.6,
+    curLeftY = drawMixedWrapped(page, item.desc, {
+      x: leftX + 35,
+      y: curLeftY - 13,
+      maxWidth: colW - 46,
+      size: 8,
+      lineHeight: 10.6,
       color: slateText,
       isBold: false,
       fonts,
     });
-    curLeftY = afterDescY - 18;
+    curLeftY -= 6;
   }
 
-  // --- RIGHT CARD: Subjects, Grade Levels & 3 Simple Steps ---
+  // --- RIGHT CARD ---
   drawRoundedBox(page, {
-    x: rightCardX + 3,
+    x: rightX + 3,
     y: gridBottom - 3,
     width: colW,
     height: gridH,
-    radius: 14,
-    color: shadowColor,
+    radius: 10,
+    color: shadowTint,
   });
   drawRoundedBox(page, {
-    x: rightCardX,
+    x: rightX,
     y: gridBottom,
     width: colW,
     height: gridH,
-    radius: 14,
+    radius: 10,
     color: white,
     borderColor: cardBorder,
     borderWidth: 1.1,
   });
-  // Emerald Rounded Header Strip on Right Card
-  page.drawSvgPath(customCornersPath(colW, 34, 14, 14, 0, 0), {
-    x: rightCardX,
+  page.drawSvgPath(customCornersPath(colW, 29, 10, 10, 0, 0), {
+    x: rightX,
     y: gridTop,
-    color: emerald,
+    color: tGreen,
   });
   page.drawRectangle({
-    x: rightCardX,
-    y: gridTop - 36,
+    x: rightX,
+    y: gridTop - 31,
     width: colW,
-    height: 2.5,
+    height: 2,
     color: gold,
   });
   drawMixedText(page, 'የሚሰጡ ትምህርቶችና የክፍል ደረጃዎች', {
-    x: rightCardX + 14,
-    y: gridTop - 22,
+    x: rightX + 13,
+    y: gridTop - 19,
     size: 10.6,
     color: white,
     isBold: true,
     fonts,
   });
 
-  // Soft Cream Highlight Box for Grade Range
   drawRoundedBox(page, {
-    x: rightCardX + 12,
-    y: gridTop - 80,
-    width: colW - 24,
-    height: 34,
-    radius: 8,
-    color: goldCream,
+    x: rightX + 11,
+    y: gridTop - 64,
+    width: colW - 22,
+    height: 26,
+    radius: 6,
+    color: goldSoft,
     borderColor: gold,
-    borderWidth: 0.9,
+    borderWidth: 0.8,
   });
   drawMixedWrapped(
     page,
     'ከመዋዕለ ሕፃናት (ኬጂ) እስከ 12ኛ ክፍል — ብሔራዊ እና ዓለም አቀፍ ሥርዓተ ትምህርት',
     {
-      x: rightCardX + 18,
-      y: gridTop - 58,
-      maxWidth: colW - 36,
-      size: 8.5,
-      lineHeight: 11.5,
-      color: navy,
+      x: rightX + 15,
+      y: gridTop - 48,
+      maxWidth: colW - 30,
+      size: 7.9,
+      lineHeight: 10.2,
+      color: inkDark,
       isBold: true,
       fonts,
       align: 'center',
@@ -820,138 +683,120 @@ async function generateFlyer() {
     'የዕለት ተዕለት የቤት ሥራ እና የጥናት እገዛ',
   ];
 
-  let curRightY = gridTop - 98;
+  let curRightY = gridTop - 78;
   for (const subj of subjectBullets) {
     page.drawCircle({
-      x: rightCardX + 18,
+      x: rightX + 17,
       y: curRightY + 3,
-      size: 2.7,
-      color: emerald,
+      size: 2.3,
+      color: tGreen,
     });
     drawMixedText(page, subj, {
-      x: rightCardX + 27,
+      x: rightX + 25,
       y: curRightY,
-      size: 8.8,
-      color: navy,
+      size: 8.3,
+      color: inkDark,
       isBold: false,
       fonts,
     });
-    curRightY -= 17.5;
+    curRightY -= 13.5;
   }
 
-  // Highlighted Soft-Blue Rounded Sub-Box for "3 Easy Steps"
-  const stepsBoxY = gridBottom + 12;
-  const stepsBoxH = 92;
+  // Highlighted Soft-Green Box for "3 Easy Steps"
+  const stepsBoxY = gridBottom + 9;
+  const stepsBoxH = 58;
   drawRoundedBox(page, {
-    x: rightCardX + 12,
+    x: rightX + 11,
     y: stepsBoxY,
-    width: colW - 24,
+    width: colW - 22,
     height: stepsBoxH,
-    radius: 10,
-    color: rgb(0.941, 0.961, 0.992),
-    borderColor: rgb(0.76, 0.84, 0.95),
-    borderWidth: 1,
+    radius: 7,
+    color: tGreenSoft,
+    borderColor: cardBorder,
+    borderWidth: 0.9,
   });
   drawMixedText(page, 'በ3 ቀላል ደረጃዎች ይጀምሩ፡', {
-    x: rightCardX + 22,
-    y: stepsBoxY + stepsBoxH - 18,
-    size: 9.5,
-    color: navy,
+    x: rightX + 18,
+    y: stepsBoxY + stepsBoxH - 13,
+    size: 8.6,
+    color: tGreenDeep,
     isBold: true,
     fonts,
   });
 
   const steps = [
-    { num: '1', text: 'በድረ ገጻችን ይመዝገቡ ወይም በስልክ ይደውሉልን' },
-    { num: '2', text: 'የልጅዎን ክፍል፣ ትምህርትና ሰዓት ይግለጹ' },
-    { num: '3', text: 'ተስማሚ አስጠኚ በፍጥነት ይመደብልዎታል' },
+    '1. በድረ ገጻችን ይመዝገቡ ወይም በስልክ ይደውሉልን',
+    '2. የልጅዎን ክፍል፣ ትምህርትና ሰዓት ይግለጹ',
+    '3. ተስማሚ አስጠኚ በፍጥነት ይመደብልዎታል',
   ];
-  let stepY = stepsBoxY + stepsBoxH - 36;
-  for (const st of steps) {
-    page.drawCircle({
-      x: rightCardX + 28,
-      y: stepY + 3,
-      size: 6.5,
-      color: gold,
-    });
-    drawMixedCentered(page, st.num, {
-      centerX: rightCardX + 28,
-      y: stepY + 0.5,
-      size: 7.5,
-      color: navy,
-      isBold: true,
-      fonts,
-    });
-    drawMixedText(page, st.text, {
-      x: rightCardX + 39,
+  let stepY = stepsBoxY + stepsBoxH - 26;
+  for (const step of steps) {
+    drawMixedText(page, step, {
+      x: rightX + 20,
       y: stepY,
-      size: 8.2,
+      size: 7.9,
       color: slateText,
       isBold: false,
       fonts,
     });
-    stepY -= 19;
+    stepY -= 12.2;
   }
 
-  // =========================================================================
-  // 4. BOTTOM HIGH-IMPACT NAVY + GOLD CTA CONTACT BANNER
-  // =========================================================================
-  const ctaX = 24;
-  const ctaY = 20;
-  const ctaW = A4_W - 48; // 547.28
-  const ctaH = 132;
+  // 6. BOTTOM CTA & CONTACT BANNER (Vibrant T-Shirt Green + Bright Gold)
+  const ctaX = photoX;
+  const ctaY = 24;
+  const ctaW = photoW;
+  const ctaH = 118;
 
   drawRoundedBox(page, {
     x: ctaX + 3,
     y: ctaY - 3,
     width: ctaW,
     height: ctaH,
-    radius: 16,
-    color: shadowColor,
+    radius: 12,
+    color: shadowTint,
   });
   drawRoundedBox(page, {
     x: ctaX,
     y: ctaY,
     width: ctaW,
     height: ctaH,
-    radius: 16,
-    color: navy,
+    radius: 12,
+    color: tGreen,
     borderColor: gold,
-    borderWidth: 2.5,
+    borderWidth: 2,
   });
-
-  // Left vibrant emerald+gold accent strip inside CTA banner
-  page.drawSvgPath(customCornersPath(9, ctaH - 4, 14, 0, 0, 14), {
+  page.drawSvgPath(customCornersPath(7, ctaH - 4, 10, 0, 0, 10), {
     x: ctaX + 2,
     y: ctaY + ctaH - 2,
     color: gold,
   });
 
   // QR Code Box on Right Side of CTA Banner
-  const qrBoxSize = 94;
-  const qrX = ctaX + ctaW - qrBoxSize - 16;
-  const qrY = ctaY + 26;
-  drawQrCodeVector(page, WEBSITE_URL, qrX, qrY, qrBoxSize, navy, white, gold);
+  const qrBoxSize = 86;
+  const qrX = ctaX + ctaW - qrBoxSize - 15;
+  const qrY = ctaY + 21;
+  drawQrCodeVector(page, WEBSITE_URL, qrX, qrY, qrBoxSize, tGreenDeep, white, gold);
   addUriLinkAnnotation(pdfDoc, page, [qrX, qrY, qrX + qrBoxSize, qrY + qrBoxSize], WEBSITE_URL);
 
   drawMixedCentered(page, 'በስልክዎ ስካን ያድርጉ', {
     centerX: qrX + qrBoxSize / 2,
-    y: ctaY + 11,
-    size: 8,
-    color: gold,
+    y: ctaY + 8.5,
+    size: 7.8,
+    color: goldSoft,
     isBold: true,
     fonts,
   });
 
-  // Left Contact Column inside CTA Banner
-  const contactX = ctaX + 22;
+  // Contact Details on Left Side of CTA Banner
+  const contactX = ctaX + 20;
   const contactMaxW = qrX - contactX - 14;
 
   drawMixedText(page, 'ዛሬውኑ ይመዝገቡ ወይም በቀጥታ ይደውሉልን!', {
     x: contactX,
-    y: ctaY + ctaH - 25,
-    size: 14,
-    color: gold,
+    y: ctaY + ctaH - 22,
+    size: 13.5,
+    color: goldSoft,
     isBold: true,
     fonts,
   });
@@ -960,32 +805,32 @@ async function generateFlyer() {
     'ለልጆችዎ ትክክለኛውን አስጠኚ ለማግኘት አሁኑኑ ይደውሉ ወይም ድረ ገጻችንን ይጎብኙ፡',
     {
       x: contactX,
-      y: ctaY + ctaH - 42,
-      size: 8.7,
-      color: rgb(0.9, 0.94, 1),
+      y: ctaY + ctaH - 38,
+      size: 8.5,
+      color: white,
       isBold: false,
       fonts,
     }
   );
 
-  // Two Vibrant Bright-Gold Clickable Phone Pills
+  // Two Clickable Vibrant Gold Phone Pills
   const phoneBoxW = (contactMaxW - 12) / 2;
-  const phoneBoxH = 29;
-  const phoneY = ctaY + 49;
+  const phoneBoxH = 26;
+  const phoneY = ctaY + 42;
 
   drawRoundedBox(page, {
     x: contactX,
     y: phoneY,
     width: phoneBoxW,
     height: phoneBoxH,
-    radius: 9,
+    radius: 8,
     color: gold,
   });
   drawMixedCentered(page, `ስልክ ቁጥር 1፡  ${PHONE_1}`, {
     centerX: contactX + phoneBoxW / 2,
-    y: phoneY + 10,
-    size: 10.2,
-    color: navy,
+    y: phoneY + 8.5,
+    size: 10,
+    color: inkDark,
     isBold: true,
     fonts,
   });
@@ -1002,14 +847,14 @@ async function generateFlyer() {
     y: phoneY,
     width: phoneBoxW,
     height: phoneBoxH,
-    radius: 9,
+    radius: 8,
     color: gold,
   });
   drawMixedCentered(page, `ስልክ ቁጥር 2፡  ${PHONE_2}`, {
     centerX: phone2X + phoneBoxW / 2,
-    y: phoneY + 10,
-    size: 10.2,
-    color: navy,
+    y: phoneY + 8.5,
+    size: 10,
+    color: inkDark,
     isBold: true,
     fonts,
   });
@@ -1020,32 +865,32 @@ async function generateFlyer() {
     `tel:${PHONE_2}`
   );
 
-  // Clean Bright White Website URL Bar
-  const urlBoxY = ctaY + 13;
-  const urlBoxH = 26;
+  // Clean White Website Link Bar
+  const urlBoxY = ctaY + 11;
+  const urlBoxH = 23;
   drawRoundedBox(page, {
     x: contactX,
     y: urlBoxY,
     width: contactMaxW,
     height: urlBoxH,
-    radius: 8,
+    radius: 7,
     color: white,
     borderColor: gold,
-    borderWidth: 1.2,
+    borderWidth: 1,
   });
   const labelEndX = drawMixedText(page, 'ድረ ገጽ፡ ', {
-    x: contactX + 10,
-    y: urlBoxY + 9,
-    size: 8.5,
-    color: navy,
+    x: contactX + 9,
+    y: urlBoxY + 7.5,
+    size: 8.2,
+    color: inkDark,
     isBold: true,
     fonts,
   });
   drawMixedText(page, WEBSITE_URL, {
     x: labelEndX,
-    y: urlBoxY + 9,
-    size: 7.3,
-    color: emerald,
+    y: urlBoxY + 7.5,
+    size: 7.2,
+    color: tGreenDeep,
     isBold: true,
     fonts,
   });
@@ -1067,7 +912,7 @@ async function generateFlyer() {
   fs.mkdirSync(path.dirname(artifactOut), { recursive: true });
   fs.writeFileSync(artifactOut, pdfBytes);
 
-  console.log(`Generated vibrant flyer PDF (${(pdfBytes.length / 1024).toFixed(1)} KB)`);
+  console.log(`Generated full-middle vibrant green flyer PDF (${(pdfBytes.length / 1024).toFixed(1)} KB)`);
 }
 
 generateFlyer().catch((err) => {
