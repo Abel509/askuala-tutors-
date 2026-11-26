@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  Copy,
   Eye,
   EyeOff,
   KeyRound,
@@ -45,7 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [suggestedPassword, setSuggestedPassword] = useState(() => suggestStrong8CharPassword());
-  const [copiedSuggestion, setCopiedSuggestion] = useState(false);
+  const [usedSuggestion, setUsedSuggestion] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -80,16 +79,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleUseSuggested = () => {
     setPassword(suggestedPassword);
     setShowPassword(true);
-  };
-
-  const handleCopySuggestion = async () => {
-    try {
-      await navigator.clipboard.writeText(suggestedPassword);
-      setCopiedSuggestion(true);
-      setTimeout(() => setCopiedSuggestion(false), 1800);
-    } catch {
-      // ignore
-    }
+    setUsedSuggestion(true);
+    setTimeout(() => setUsedSuggestion(false), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -346,33 +337,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={handleCopySuggestion}
-                      className="px-2 py-1 text-xs rounded border border-[#22c55e] bg-white hover:bg-[#dcfce7] inline-flex items-center gap-1 cursor-pointer"
+                      onClick={handleUseSuggested}
+                      className="px-3 py-1 text-xs font-bold rounded-md bg-[#14532d] text-white hover:bg-[#166534] inline-flex items-center gap-1 cursor-pointer"
                     >
-                      {copiedSuggestion ? (
-                        <Check className="w-3 h-3" />
+                      {usedSuggestion ? (
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
                       ) : (
-                        <Copy className="w-3 h-3" />
+                        <KeyRound className="w-3.5 h-3.5" aria-hidden="true" />
                       )}
                       <span>
-                        {copiedSuggestion
+                        {usedSuggestion
                           ? isAmharicUI
-                            ? 'ተቀድቷል'
-                            : 'Copied'
+                            ? 'ተሞልቷል ✓'
+                            : 'Applied ✓'
                           : isAmharicUI
-                          ? 'ቅዳ'
-                          : 'Copy'}
+                          ? 'ተጠቀም (Use)'
+                          : 'Use'}
                       </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setSuggestedPassword(suggestStrong8CharPassword());
-                        setCopiedSuggestion(false);
+                        setUsedSuggestion(false);
                       }}
-                      className="px-2 py-1 text-xs rounded border border-[#22c55e] bg-white hover:bg-[#dcfce7] inline-flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-md border border-[#22c55e] bg-white text-[#14532d] hover:bg-[#dcfce7] inline-flex items-center gap-1 cursor-pointer"
                     >
-                      <RefreshCw className="w-3 h-3" />
+                      <RefreshCw className="w-3 h-3" aria-hidden="true" />
                       <span>{isAmharicUI ? 'አዲስ' : 'New'}</span>
                     </button>
                   </div>

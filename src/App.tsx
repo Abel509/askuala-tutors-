@@ -398,13 +398,6 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3 min-h-[36px] ml-auto">
-            <a
-              href="/askuala_families_flyer.pdf"
-              download="Askuala_Astegniwoch_Families_Flyer.pdf"
-              className="relative z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#14532d]/30 bg-[#f0fdf4] text-[#14532d] text-xs font-bold hover:bg-[#dcfce7] transition-colors font-amharic"
-            >
-              <span>የቤተሰቦች ፍላየር (PDF)</span>
-            </a>
             {siteMode !== 'owner' && view === 'home' && ownerRevealed && (
               <button
                 type="button"
