@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpenCheck, LogIn, PhoneCall, UserPlus } from 'lucide-react';
-import heroLadyImg from '../assets/images/askuala_lady_teaching_smiling_1795443769885.jpg';
+import heroLadyImg from '../assets/images/askuala_hero_green_polo_1795702880228.jpg';
 import { SUPPORT_PHONE } from '../data/catalog';
 import type { SiteMode, UserAccount, UserRole } from '../types/app';
 
@@ -49,12 +49,12 @@ export const OpeningPage: React.FC<OpeningPageProps> = ({
             <>
               <img
                 src={imgSrc}
-                alt="Young Ethiopian lady tutor joyfully teaching two smiling school children"
+                alt="Smiling Ethiopian lady tutor wearing a green Askuala Astegniwoch polo shirt tutoring a smiling boy student"
                 referrerPolicy="no-referrer"
                 decoding="async"
                 fetchPriority="high"
                 onError={() => setImgError(true)}
-                className="w-full h-full object-cover object-top lg:absolute lg:inset-0"
+                className="w-full h-full object-cover object-center lg:absolute lg:inset-0"
               />
               <div
                 aria-hidden="true"
