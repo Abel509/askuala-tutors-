@@ -2880,6 +2880,61 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Family Marketing Flyer PDF Card */}
+                  <div className="lg:col-span-2 p-5 rounded-2xl bg-white border-2 border-[#22c55e] flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-1 max-w-2xl">
+                      <h2 className="text-lg font-bold text-[#14532d] flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-[#15803d]" aria-hidden="true" />
+                        <span className="font-amharic">
+                          የቤተሰቦች ማስታወቂያ ፍላየር · Amharic Families Flyer (1-Page PDF)
+                        </span>
+                      </h2>
+                      <p className="text-xs text-[#475569]">
+                        100% Amharic one-page promotional flyer for families featuring the{' '}
+                        <span className="font-semibold text-[#14532d]">ኣስኳላ አስጠኚዎች</span>{' '}
+                        crest logo, branded green T-shirt tutor &amp; boy portrait, website QR
+                        code, and phone numbers <span className="font-bold">0908998412</span> &amp;{' '}
+                        <span className="font-bold">099036733</span>.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setInspectPdfTitle('ኣስኳላ አስጠኚዎች — የቤተሰቦች ማስታወቂያ ፍላየር (PDF)');
+                          setInspectPdfUrl('/askuala_families_flyer.pdf');
+                          setInspectPdfPages([]);
+                          setLoadingPdfPages(true);
+                          try {
+                            const res = await fetch('/askuala_families_flyer.pdf');
+                            const buf = await res.arrayBuffer();
+                            const imgs = await renderPdfBytesToPngUrls(
+                              new Uint8Array(buf),
+                              'ኣስኳላ አስጠኚዎች — የቤተሰቦች ፍላየር'
+                            );
+                            setInspectPdfPages(imgs);
+                          } catch {
+                            // Fall back to iframe src=/askuala_families_flyer.pdf
+                          } finally {
+                            setLoadingPdfPages(false);
+                          }
+                        }}
+                        className="min-h-[42px] px-4 py-2 rounded-xl border-2 border-[#14532d] bg-[#f0fdf4] text-[#14532d] text-sm font-bold inline-flex items-center gap-1.5 hover:bg-[#dcfce7] cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" aria-hidden="true" />
+                        <span>Preview Flyer</span>
+                      </button>
+                      <a
+                        href="/askuala_families_flyer.pdf"
+                        download="Askuala_Astegniwoch_Families_Flyer.pdf"
+                        className="min-h-[42px] px-5 py-2 rounded-xl bg-[#14532d] text-white text-sm font-bold inline-flex items-center gap-2 hover:bg-[#166534]"
+                      >
+                        <Download className="w-4 h-4" aria-hidden="true" />
+                        <span>Download Flyer PDF</span>
+                      </a>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
